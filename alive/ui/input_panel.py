@@ -22,11 +22,13 @@ class InputPanel:
         on_ptt_start: Callable[[], None] | None = None,
         on_toggle_quiet: Callable[[], None] | None = None,
         voice_enabled: bool = True,
+        on_quit: Callable[[], None] | None = None,
     ) -> None:
         self.on_text_submit = on_text_submit
         self.on_ptt_hold = on_ptt_hold
         self.on_ptt_start = on_ptt_start
         self.on_toggle_quiet = on_toggle_quiet
+        self.on_quit = on_quit
         self._held_since: float | None = None
 
         self.window = Gtk.Window(type=Gtk.WindowType.TOPLEVEL)
@@ -59,7 +61,15 @@ class InputPanel:
         quiet.connect("toggled", self._on_quiet)
         box.pack_start(quiet, False, False, 0)
 
+        self.quit_button = Gtk.Button(label="Salir")
+        self.quit_button.connect("clicked", self._on_quit)
+        box.pack_start(self.quit_button, False, False, 0)
+
         self.window.add(box)
+        accel_group = Gtk.AccelGroup()
+        key, mods = Gtk.accelerator_parse("<Control>q")
+        accel_group.connect(key, mods, 0, self._on_quit_accel)
+        self.window.add_accel_group(accel_group)
         self.window.show_all()
         if not voice_enabled:
             self.mic.hide()
@@ -110,3 +120,10 @@ class InputPanel:
     def _on_quiet(self, button) -> None:
         if self.on_toggle_quiet is not None:
             self.on_toggle_quiet()
+
+    def _on_quit(self, button=None) -> None:
+        if self.on_quit is not None:
+            self.on_quit()
+
+    def _on_quit_accel(self, group, acceleratable, key, mods) -> None:
+        self._on_quit()

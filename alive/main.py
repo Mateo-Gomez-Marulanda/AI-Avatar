@@ -58,6 +58,7 @@ def build(config_path: str | Path) -> tuple[Mediator, AvatarView, InputPanel, An
         on_ptt_start=on_ptt_start,
         on_toggle_quiet=on_toggle_quiet,
         voice_enabled=config.voice.enabled,
+        on_quit=Gtk.main_quit,
     )
 
     mediator = Mediator(
