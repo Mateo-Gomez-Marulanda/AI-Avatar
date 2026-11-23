@@ -18,6 +18,11 @@ _SIZE = (200, 300)
 _BODY = (54, 96, 92, 132)
 _HEAD = (56, 40, 88, 88)
 _BUBBLE = (8, 8, 184, 56)
+_CLICK_SLOP_PX = 10
+
+
+def _is_drag(dx: int, dy: int) -> bool:
+    return abs(dx) + abs(dy) > _CLICK_SLOP_PX
 
 _STATE_COLORS = {
     "sentado": (0.36, 0.62, 0.78),
@@ -175,6 +180,7 @@ class AvatarView:
             _SIZE[0],
             _SIZE[1],
         )
+        self.area.grab_add()
         return True
 
     def _motion(self, widget, event) -> bool:
@@ -184,7 +190,7 @@ class AvatarView:
             origin = getattr(self, "_press_point", None)
             if origin is None:
                 return False
-            if abs(event.x_root - origin[0]) + abs(event.y_root - origin[1]) < 4:
+            if not _is_drag(event.x_root - origin[0], event.y_root - origin[1]):
                 return False
             self._dragging = True
             self.on_drag_start()
@@ -194,6 +200,7 @@ class AvatarView:
         return True
 
     def _button_release(self, widget, event) -> bool:
+        self.area.grab_remove()
         if event.button != 1:
             return False
         if not self._dragging:
