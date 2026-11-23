@@ -1,0 +1,25 @@
+import struct
+from alive.audio import VoiceService, rms_envelope
+
+def test_rms_envelope_silence_and_tone():
+    assert rms_envelope(b"\x00" * 4096, frame_samples=1024) == [0.0, 0.0]
+    loud = struct.pack("<h", 16000) * 1024 + b"\x00" * 2048
+    vals = rms_envelope(loud, frame_samples=1024)
+    assert vals[0] > 0.3 and vals[1] == 0.0
+
+def test_record_replaces_duration_placeholder():
+    calls = []
+    cfg = type("C", (), {"capture_command": ["ffmpeg", "-t", "{duration}", "-i", "x"],
+                         "sample_rate": 16000, "frame_samples": 1024})()
+    v = VoiceService(cfg, lambda argv, stdin, timeout_s: (calls.append(argv), b"pcm")[1], lambda s: None)
+    assert v.record(2.5) == b"pcm" and calls[0][2] == "2.5"
+
+def test_speak_feeds_levels_in_order():
+    levels, sleeps = [], []
+    cfg = type("C", (), {"tts_command": ["tts"], "play_command": ["paplay"],
+                         "sample_rate": 16000, "frame_samples": 1024, "timeout_s": 5.0})()
+    runner = lambda argv, stdin, timeout_s: b"\x00" * 4096 if argv[0] == "tts" else ""
+    v = VoiceService(cfg, runner, lambda s: sleeps.append(s))
+    v.speak("hola", lambda level, t: levels.append(level))
+    assert levels == [0.0, 0.0]
+    assert sleeps == [0.064, 0.064]
