@@ -15,3 +15,9 @@ def test_application_imports():
 def test_infrastructure_imports():
     from alive.infrastructure.providers.cli import CliProvider, SubprocessRunner
     from alive.infrastructure.background import GtkBackgroundRunner
+
+
+def test_ui_and_entrypoint_imports():
+    from alive.ui.avatar_view import AvatarView
+    from alive.ui.input_panel import InputPanel
+    from alive.main import build, main
