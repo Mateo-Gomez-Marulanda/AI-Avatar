@@ -75,3 +75,17 @@ def test_unknown_app_order_is_ignored():
     e = AnimationEngine(); m = make(engine=e, view=object(), ai=object(), voice=object(),
                                     launcher=object())
     assert m.apply_order(Order("ABRIR", "inexistente")) is False
+
+class EngineSpy:
+    def __init__(self): self.ended = False
+    def end_drag(self, now): self.ended = True
+
+class ViewSpy:
+    def snap_to(self, zone):
+        raise AssertionError("snap_to no debe cancelar la animación")
+
+def test_drag_end_does_not_cancel_snap():
+    engine, view = EngineSpy(), ViewSpy()
+    m = make(engine=engine, view=view, ai=object(), voice=object(), launcher=object())
+    m.on_drag_end("barra")
+    assert engine.ended

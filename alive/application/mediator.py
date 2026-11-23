@@ -107,4 +107,3 @@ class Mediator:
 
     def on_drag_end(self, zone_name: str) -> None:
         self.engine.end_drag(self.clock())
-        self.view.snap_to(zone_name)
