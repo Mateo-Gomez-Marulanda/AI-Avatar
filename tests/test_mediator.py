@@ -1,6 +1,6 @@
 from alive.mediator import Mediator
-from alive.orders import Order
-from alive.config import Config, ProviderConfig, VoiceConfig
+from alive.domain.config import Config, ProviderConfig, VoiceConfig
+from alive.domain.orders import Order
 
 class Inline:
     def run(self, work, done): done(work())
@@ -14,7 +14,7 @@ def make(**kw):
     return Mediator(**base)
 
 def test_answer_shows_bubble_and_speaks():
-    from alive.animation import AnimationEngine
+    from alive.domain.animation import AnimationEngine
     class V:
         def __init__(self): self.bubble=None
         def show_bubble(self, text, ms): self.bubble=text
@@ -38,7 +38,7 @@ def test_answer_shows_bubble_and_speaks():
     assert e.state == "hablando"
 
 def test_empty_ptt_does_not_call_ai():
-    from alive.animation import AnimationEngine
+    from alive.domain.animation import AnimationEngine
     class Voice:
         def record(self, s): return b"xyz"
         def transcribe(self, a): return "   "
@@ -51,7 +51,7 @@ def test_empty_ptt_does_not_call_ai():
     assert e.state == "sentado"
 
 def test_provider_error_returns_to_idle_with_message():
-    from alive.animation import AnimationEngine
+    from alive.domain.animation import AnimationEngine
     from alive.providers.base import ProviderError
     class V:
         def show_bubble(self, text, ms): self.bubble=text
@@ -71,7 +71,7 @@ def test_provider_error_returns_to_idle_with_message():
     assert e.state == "sentado" and "No pude responder" in v.bubble
 
 def test_unknown_app_order_is_ignored():
-    from alive.animation import AnimationEngine
+    from alive.domain.animation import AnimationEngine
     e = AnimationEngine(); m = make(engine=e, view=object(), ai=object(), voice=object(),
                                     launcher=object())
     assert m.apply_order(Order("ABRIR", "inexistente")) is False

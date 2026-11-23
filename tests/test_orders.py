@@ -1,4 +1,4 @@
-from alive.orders import parse_orders
+from alive.domain.orders import parse_orders
 
 def test_extracts_only_allowed_orders():
     r = parse_orders("Hola\nESTADO=musica\nABRIR=firefox\nZONA=top\nESTADO=hablando\nFin")

@@ -1,4 +1,4 @@
-from alive.config import ProviderConfig
+from alive.domain.config import ProviderConfig
 from alive.providers.cli import CliProvider, SubprocessRunner
 
 def test_strips_ansi_from_output():

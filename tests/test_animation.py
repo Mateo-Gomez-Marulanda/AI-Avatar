@@ -1,5 +1,5 @@
 import pytest
-from alive.animation import AnimationEngine, STATES
+from alive.domain.animation import AnimationEngine, STATES
 
 def test_unknown_state_is_rejected():
     with pytest.raises(ValueError):

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from alive.config import Zone
+from alive.domain.config import Zone
 
 
 @dataclass(frozen=True)

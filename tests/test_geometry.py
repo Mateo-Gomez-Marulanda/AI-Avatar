@@ -1,5 +1,5 @@
-from alive.config import Zone
-from alive.geometry import Rect, nearest_zone, zone_rect
+from alive.domain.config import Zone
+from alive.domain.geometry import Rect, nearest_zone, zone_rect
 
 MON = Rect(0, 0, 1920, 1080)
 SZ = (200, 300)

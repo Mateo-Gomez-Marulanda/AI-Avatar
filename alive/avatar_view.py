@@ -11,8 +11,8 @@ gi.require_version("GtkLayerShell", "0.1")
 import cairo
 from gi.repository import Gdk, GLib, Gtk, GtkLayerShell  # noqa: E402
 
-from alive.config import Config, Zone  # noqa: E402
-from alive.geometry import Rect, nearest_zone, zone_rect  # noqa: E402
+from alive.domain.config import Config, Zone  # noqa: E402
+from alive.domain.geometry import Rect, nearest_zone, zone_rect  # noqa: E402
 
 _SIZE = (200, 300)
 _BODY = (54, 96, 92, 132)

@@ -6,7 +6,7 @@ import re
 import subprocess
 from collections.abc import Callable
 
-from alive.config import ProviderConfig
+from alive.domain.config import ProviderConfig
 from alive.interfaces import CommandRunner
 from alive.providers.base import AiReply, ProviderError
 

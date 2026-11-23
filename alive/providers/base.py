@@ -1,12 +1,5 @@
-from __future__ import annotations
+"""Compatibilidad temporal: AiReply y ProviderError viven en el dominio."""
 
-from dataclasses import dataclass
+from alive.domain.contracts import AiReply, ProviderError
 
-
-@dataclass(frozen=True)
-class AiReply:
-    text: str
-
-
-class ProviderError(RuntimeError):
-    pass
+__all__ = ["AiReply", "ProviderError"]

@@ -1,4 +1,4 @@
-from alive.config import ConfigError, load_config
+from alive.domain.config import ConfigError, load_config
 
 def test_load_config_reads_provider_apps_and_zones(tmp_path):
     p = tmp_path / "c.toml"

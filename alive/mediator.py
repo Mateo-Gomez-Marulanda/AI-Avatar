@@ -8,9 +8,9 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from alive.config import Config
-from alive.orders import ALLOWED_STATES, Order, parse_orders
-from alive.providers.base import AiReply, ProviderError
+from alive.domain.config import Config
+from alive.domain.contracts import AiReply, ProviderError
+from alive.domain.orders import ALLOWED_STATES, Order, parse_orders
 
 
 class Mediator:
