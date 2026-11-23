@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import argparse
 import subprocess
-import threading
 import time
 from pathlib import Path
 
@@ -23,18 +22,8 @@ from alive.domain.config import load_config  # noqa: E402
 from alive.domain.geometry import Rect  # noqa: E402
 from alive.input_panel import InputPanel  # noqa: E402
 from alive.application.mediator import Mediator  # noqa: E402
-from alive.providers.cli import CliProvider, SubprocessRunner  # noqa: E402
-
-
-class GtkBackgroundRunner:
-    """Trabaja fuera del hilo GTK y entrega el resultado en el hilo principal."""
-
-    def run(self, work, done) -> None:
-        def target() -> None:
-            result = work()
-            GLib.idle_add(done, result)
-
-        threading.Thread(target=target, daemon=True).start()
+from alive.infrastructure.background import GtkBackgroundRunner  # noqa: E402
+from alive.infrastructure.providers.cli import CliProvider, SubprocessRunner  # noqa: E402
 
 
 def build(config_path: str | Path) -> tuple[Mediator, AvatarView, InputPanel, AnimationEngine]:

@@ -10,3 +10,8 @@ def test_application_imports():
     from alive.application.mediator import Mediator
     from alive.application.apps import AppLauncher
     from alive.application.audio import VoiceService, rms_envelope
+
+
+def test_infrastructure_imports():
+    from alive.infrastructure.providers.cli import CliProvider, SubprocessRunner
+    from alive.infrastructure.background import GtkBackgroundRunner

@@ -1,6 +1,7 @@
 import threading
 
 import alive.main as main
+from alive.infrastructure.background import GtkBackgroundRunner
 
 
 def test_background_runner_delivers_result(monkeypatch):
@@ -12,6 +13,6 @@ def test_background_runner_delivers_result(monkeypatch):
         results.append(value)
         done_event.set()
 
-    main.GtkBackgroundRunner().run(lambda: 42, done)
+    GtkBackgroundRunner().run(lambda: 42, done)
     assert done_event.wait(2)
     assert results == [42]

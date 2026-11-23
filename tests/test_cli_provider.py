@@ -1,5 +1,5 @@
 from alive.domain.config import ProviderConfig
-from alive.providers.cli import CliProvider, SubprocessRunner
+from alive.infrastructure.providers.cli import CliProvider, SubprocessRunner
 
 def test_strips_ansi_from_output():
     out = "\x1b[31mHola\x1b[0m mundo"
@@ -29,6 +29,6 @@ def test_oneshot_never_passes_session_flag():
 
 def test_runner_reports_timeout():
     import pytest
-    from alive.providers.base import ProviderError
+    from alive.domain.contracts import ProviderError
     with pytest.raises(ProviderError):
         SubprocessRunner().run(["python3", "-c", "import time; time.sleep(1)"], b"", 0.01)

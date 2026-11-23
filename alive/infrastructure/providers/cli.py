@@ -7,8 +7,7 @@ import subprocess
 from collections.abc import Callable
 
 from alive.domain.config import ProviderConfig
-from alive.interfaces import CommandRunner
-from alive.providers.base import AiReply, ProviderError
+from alive.domain.contracts import AiReply, CommandRunner, ProviderError
 
 Runner = CommandRunner | Callable[[list[str], bytes, float], str]
 

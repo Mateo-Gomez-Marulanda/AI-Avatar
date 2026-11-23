@@ -23,7 +23,7 @@ def test_answer_shows_bubble_and_speaks():
         def set_click_through(self, e): pass
         def snap_to(self, z): pass
     class A:
-        def ask(self, prompt, history): from alive.providers.base import AiReply; return AiReply("Hola\nABRIR=firefox")
+        def ask(self, prompt, history): from alive.domain.contracts import AiReply; return AiReply("Hola\nABRIR=firefox")
     class Voice:
         def record(self, s): return b""
         def transcribe(self, a): return ""
@@ -52,7 +52,7 @@ def test_empty_ptt_does_not_call_ai():
 
 def test_provider_error_returns_to_idle_with_message():
     from alive.domain.animation import AnimationEngine
-    from alive.providers.base import ProviderError
+    from alive.domain.contracts import ProviderError
     class V:
         def show_bubble(self, text, ms): self.bubble=text
         def hide_bubble(self): pass
