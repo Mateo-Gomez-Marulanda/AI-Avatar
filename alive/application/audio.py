@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+import shutil
 import struct
 import time
 from collections.abc import Callable
@@ -10,6 +11,23 @@ from collections.abc import Callable
 from alive.domain.contracts import CommandRunner
 
 Runner = CommandRunner | Callable[[list[str], bytes, float], str | bytes]
+
+
+def missing_voice_commands(config) -> list[str]:
+    """Etiquetas de los comandos de voz que no existen en este sistema."""
+    if not getattr(config, "enabled", True):
+        return []
+    checks = (
+        ("captura", config.capture_command),
+        ("stt", config.stt_command),
+        ("tts", config.tts_command),
+        ("play", config.play_command),
+    )
+    return [
+        label
+        for label, argv in checks
+        if argv and shutil.which(argv[0]) is None
+    ]
 
 
 def _run(runner: Runner, argv: list[str], stdin: bytes, timeout_s: float) -> str | bytes:

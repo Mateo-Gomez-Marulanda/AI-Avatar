@@ -15,7 +15,7 @@ gi.require_version("Gdk", "3.0")
 from gi.repository import Gdk, GLib, Gtk  # noqa: E402
 
 from alive.application.apps import AppLauncher  # noqa: E402
-from alive.application.audio import VoiceService  # noqa: E402
+from alive.application.audio import VoiceService, missing_voice_commands  # noqa: E402
 from alive.application.mediator import Mediator  # noqa: E402
 from alive.domain.animation import AnimationEngine  # noqa: E402
 from alive.domain.config import load_config  # noqa: E402
@@ -31,6 +31,7 @@ def build(config_path: str | Path) -> tuple[Mediator, AvatarView, InputPanel, An
     geometry = Gdk.Display.get_default().get_monitor(0).get_geometry()
     monitor = Rect(geometry.x, geometry.y, geometry.width, geometry.height)
 
+    missing_voice = missing_voice_commands(config.voice)
     runner = SubprocessRunner()
     ai = CliProvider(config.provider, runner)
     voice = VoiceService(config.voice, runner)
@@ -57,9 +58,13 @@ def build(config_path: str | Path) -> tuple[Mediator, AvatarView, InputPanel, An
         on_ptt_hold,
         on_ptt_start=on_ptt_start,
         on_toggle_quiet=on_toggle_quiet,
-        voice_enabled=config.voice.enabled,
+        voice_enabled=config.voice.enabled and not missing_voice,
         on_quit=Gtk.main_quit,
     )
+    if missing_voice:
+        view.show_bubble(
+            "Voz no disponible: faltan herramientas", config.bubble_ms_per_char
+        )
 
     mediator = Mediator(
         engine=engine,

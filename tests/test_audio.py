@@ -51,3 +51,18 @@ def test_disabled_voice_is_silent_even_with_commands():
                          "frame_samples": 1024, "timeout_s": 5.0})()
     v = VoiceService(cfg, lambda *a: (_ for _ in ()).throw(AssertionError("no debe ejecutar")))
     v.record(1.0); v.transcribe(b"pcm"); v.speak("hola", lambda *a: None)
+
+import alive.application.audio as audio
+
+def test_missing_voice_commands_detects_absent_binaries(monkeypatch):
+    cfg = type("C", (), {"enabled": True,
+                         "capture_command": ["rec"], "stt_command": ["stt"],
+                         "tts_command": ["tts"], "play_command": ["play"]})()
+    monkeypatch.setattr(audio.shutil, "which", lambda name: None)
+    assert audio.missing_voice_commands(cfg) == ["captura", "stt", "tts", "play"]
+
+def test_disabled_voice_has_no_missing_commands():
+    cfg = type("C", (), {"enabled": False, "capture_command": ["rec"],
+                         "stt_command": ["stt"], "tts_command": ["tts"],
+                         "play_command": ["play"]})()
+    assert audio.missing_voice_commands(cfg) == []

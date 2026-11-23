@@ -74,14 +74,23 @@ class Mediator:
     def ptt_start(self) -> None:
         self.engine.transition_to("escuchando", self.clock())
 
+    def _transcribe(self, seconds: float) -> str:
+        try:
+            return self.voice.transcribe(self.voice.record(seconds))
+        except ProviderError:
+            return ""
+
     def ptt_end(self, held_seconds: float) -> None:
-        work = lambda: self.voice.transcribe(self.voice.record(held_seconds))
+        work = lambda: self._transcribe(held_seconds)
         self.background.run(work, self._on_transcript)
 
     def _on_transcript(self, text: str) -> None:
         if text.strip():
             self.submit_text(text)
         else:
+            self.view.show_bubble(
+                "No pude escuchar", self.config.bubble_ms_per_char
+            )
             self.engine.transition_to(self.config.idle_state, self.clock())
 
     def apply_order(self, order: Order) -> bool:
