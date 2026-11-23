@@ -23,3 +23,31 @@ def test_speak_feeds_levels_in_order():
     v.speak("hola", lambda level, t: levels.append(level))
     assert levels == [0.0, 0.0]
     assert sleeps == [0.064, 0.064]
+
+
+def test_empty_tts_is_a_noop():
+    calls = []
+    cfg = type("C", (), {"tts_command": [], "play_command": [], "sample_rate": 16000,
+                         "frame_samples": 1024, "timeout_s": 5.0})()
+    def runner(argv, stdin, timeout_s):
+        calls.append(argv)
+        return b""
+    v = VoiceService(cfg, runner, lambda s: None)
+    levels = []
+    v.speak("hola", lambda level, t: levels.append(level))
+    assert calls == [] and levels == []
+
+
+def test_empty_capture_and_stt_return_empty():
+    cfg = type("C", (), {"capture_command": [], "stt_command": [], "timeout_s": 5.0})()
+    v = VoiceService(cfg, lambda *a: (_ for _ in ()).throw(AssertionError("no debe ejecutar")))
+    assert v.record(1.0) == b""
+    assert v.transcribe(b"pcm") == ""
+
+
+def test_disabled_voice_is_silent_even_with_commands():
+    cfg = type("C", (), {"enabled": False, "capture_command": ["rec"], "stt_command": ["stt"],
+                         "tts_command": ["tts"], "play_command": ["play"], "sample_rate": 16000,
+                         "frame_samples": 1024, "timeout_s": 5.0})()
+    v = VoiceService(cfg, lambda *a: (_ for _ in ()).throw(AssertionError("no debe ejecutar")))
+    v.record(1.0); v.transcribe(b"pcm"); v.speak("hola", lambda *a: None)

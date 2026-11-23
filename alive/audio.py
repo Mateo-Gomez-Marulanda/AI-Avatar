@@ -53,7 +53,12 @@ class VoiceService:
         self.runner = runner
         self.sleep = sleep
 
+    def _enabled(self, command: list[str]) -> bool:
+        return bool(getattr(self.config, "enabled", True) and command)
+
     def record(self, seconds: float) -> bytes:
+        if not self._enabled(self.config.capture_command):
+            return b""
         argv = [
             arg.replace("{duration}", str(seconds))
             for arg in self.config.capture_command
@@ -62,6 +67,8 @@ class VoiceService:
         return _as_bytes(result)
 
     def transcribe(self, audio: bytes) -> str:
+        if not self._enabled(self.config.stt_command):
+            return ""
         result = _run(
             self.runner, self.config.stt_command, audio, self.config.timeout_s
         )
@@ -72,6 +79,8 @@ class VoiceService:
         text: str,
         on_level: Callable[[float, float], None],
     ) -> None:
+        if not self._enabled(self.config.tts_command) or not self.config.play_command:
+            return
         pcm = _as_bytes(
             _run(
                 self.runner,

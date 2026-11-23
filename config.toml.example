@@ -9,7 +9,9 @@ session_mode = "resume"
 session_flag = "--resume"
 session_id_regex = "^SESSION=(.+)$"
 timeout_s = 60.0
-# El modelo NO recibe información de animación: solo conversación y órdenes válidas.
+# El modelo NO recibe información de animación: solo conversación y estas dos órdenes:
+#   ESTADO=sentado|parado|musica   ABRIR=<alias de [apps]>
+# Cualquier otra línea ZONA=... o ESTADO=hablando se ignora.
 prompt_template = "{history}\n{text}"
 
 # El modelo puede pedir ABRIR=alias solo con alias de esta lista.
@@ -37,11 +39,13 @@ x = 400
 y = 300
 
 [voice]
-# Sustituye por tus comandos reales; deja las listas vacías para desactivar.
+# Sustituye por tus comandos reales. Con enabled=false se oculta el micrófono
+# y no se registran atajos de voz; las listas vacías desactivan cada paso.
 stt_command = ["whisper-cli", "-m", "models/ggml-tiny.bin", "-f", "-"]
 tts_command = ["piper", "--model", "models/voice.onnx", "--output_raw"]
 play_command = ["paplay", "--raw", "--format=s16le", "--rate=16000", "--channels=1"]
 capture_command = ["ffmpeg", "-f", "pulse", "-i", "default", "-t", "{duration}", "-f", "s16le", "-"]
 sample_rate = 16000
 frame_samples = 1024
+timeout_s = 30.0
 enabled = true

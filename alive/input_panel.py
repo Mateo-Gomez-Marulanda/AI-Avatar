@@ -1,0 +1,112 @@
+"""Panel de texto y micrófono de pulsación mantenida."""
+
+from __future__ import annotations
+
+import time
+from collections.abc import Callable
+
+import gi
+
+gi.require_version("Gtk", "3.0")
+gi.require_version("Gdk", "3.0")
+
+from gi.repository import Gdk, Gtk  # noqa: E402
+
+
+class InputPanel:
+    def __init__(
+        self,
+        on_text_submit: Callable[[str], None],
+        on_ptt_hold: Callable[[float], None],
+        *,
+        on_ptt_start: Callable[[], None] | None = None,
+        on_toggle_quiet: Callable[[], None] | None = None,
+        voice_enabled: bool = True,
+    ) -> None:
+        self.on_text_submit = on_text_submit
+        self.on_ptt_hold = on_ptt_hold
+        self.on_ptt_start = on_ptt_start
+        self.on_toggle_quiet = on_toggle_quiet
+        self._held_since: float | None = None
+
+        self.window = Gtk.Window(type=Gtk.WindowType.TOPLEVEL)
+        self.window.set_title("Alive")
+        self.window.set_default_size(480, 88)
+        self.window.set_position(Gtk.WindowPosition.CENTER)
+        self.window.set_keep_above(False)
+
+        box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        box.set_border_width(8)
+
+        self.entry = Gtk.Entry()
+        self.entry.set_placeholder_text("Escribe a Alive…")
+        self.entry.connect("activate", self._on_activate)
+        box.pack_start(self.entry, True, True, 0)
+
+        send = Gtk.Button(label="Enviar")
+        send.connect("clicked", self._on_send)
+        box.pack_start(send, False, False, 0)
+
+        self.mic = Gtk.Button(label="Micrófono")
+        self.mic.set_events(
+            Gdk.EventMask.BUTTON_PRESS_MASK | Gdk.EventMask.BUTTON_RELEASE_MASK
+        )
+        self.mic.connect("button-press-event", self._on_mic_press)
+        self.mic.connect("button-release-event", self._on_mic_release)
+        box.pack_start(self.mic, False, False, 0)
+
+        quiet = Gtk.ToggleButton(label="No molestar")
+        quiet.connect("toggled", self._on_quiet)
+        box.pack_start(quiet, False, False, 0)
+
+        self.window.add(box)
+        self.window.show_all()
+        if not voice_enabled:
+            self.mic.hide()
+        self.window.hide()
+
+    def show(self) -> None:
+        self.window.show()
+        self.entry.grab_focus()
+
+    def hide(self) -> None:
+        self.window.hide()
+
+    def present(self) -> None:
+        self.window.present()
+        self.entry.grab_focus()
+
+    def _submit(self) -> None:
+        text = self.entry.get_text().strip()
+        if not text:
+            return
+        self.entry.set_text("")
+        self.on_text_submit(text)
+        self.hide()
+
+    def _on_activate(self, entry) -> None:
+        self._submit()
+
+    def _on_send(self, button) -> None:
+        self._submit()
+
+    def _on_mic_press(self, widget, event) -> bool:
+        if event.button != 1:
+            return False
+        self._held_since = time.monotonic()
+        if self.on_ptt_start is not None:
+            self.on_ptt_start()
+        return False
+
+    def _on_mic_release(self, widget, event) -> bool:
+        if event.button != 1 or self._held_since is None:
+            return False
+        held = time.monotonic() - self._held_since
+        self._held_since = None
+        self.on_ptt_hold(held)
+        self.hide()
+        return False
+
+    def _on_quiet(self, button) -> None:
+        if self.on_toggle_quiet is not None:
+            self.on_toggle_quiet()
