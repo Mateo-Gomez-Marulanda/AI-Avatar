@@ -15,14 +15,14 @@ gi.require_version("Gdk", "3.0")
 
 from gi.repository import Gdk, GLib, Gtk  # noqa: E402
 
-from alive.apps import AppLauncher  # noqa: E402
-from alive.audio import VoiceService  # noqa: E402
+from alive.application.apps import AppLauncher  # noqa: E402
+from alive.application.audio import VoiceService  # noqa: E402
 from alive.avatar_view import AvatarView  # noqa: E402
 from alive.domain.animation import AnimationEngine  # noqa: E402
 from alive.domain.config import load_config  # noqa: E402
 from alive.domain.geometry import Rect  # noqa: E402
 from alive.input_panel import InputPanel  # noqa: E402
-from alive.mediator import Mediator  # noqa: E402
+from alive.application.mediator import Mediator  # noqa: E402
 from alive.providers.cli import CliProvider, SubprocessRunner  # noqa: E402
 
 

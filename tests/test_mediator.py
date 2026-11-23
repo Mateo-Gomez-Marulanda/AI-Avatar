@@ -1,4 +1,4 @@
-from alive.mediator import Mediator
+from alive.application.mediator import Mediator
 from alive.domain.config import Config, ProviderConfig, VoiceConfig
 from alive.domain.orders import Order
 

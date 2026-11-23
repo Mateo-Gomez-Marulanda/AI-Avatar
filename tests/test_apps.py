@@ -1,4 +1,4 @@
-from alive.apps import AppLauncher
+from alive.application.apps import AppLauncher
 
 def test_known_alias_launches_exact_argv():
     seen = []

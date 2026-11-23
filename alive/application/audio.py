@@ -7,7 +7,7 @@ import struct
 import time
 from collections.abc import Callable
 
-from alive.interfaces import CommandRunner
+from alive.domain.contracts import CommandRunner
 
 Runner = CommandRunner | Callable[[list[str], bytes, float], str | bytes]
 

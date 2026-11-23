@@ -4,3 +4,9 @@ def test_domain_imports():
     from alive.domain.animation import AnimationEngine
     from alive.domain.geometry import Rect
     from alive.domain.contracts import AiReply, ProviderError, CommandRunner
+
+
+def test_application_imports():
+    from alive.application.mediator import Mediator
+    from alive.application.apps import AppLauncher
+    from alive.application.audio import VoiceService, rms_envelope

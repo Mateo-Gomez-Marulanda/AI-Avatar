@@ -1,5 +1,5 @@
 import struct
-from alive.audio import VoiceService, rms_envelope
+from alive.application.audio import VoiceService, rms_envelope
 
 def test_rms_envelope_silence_and_tone():
     assert rms_envelope(b"\x00" * 4096, frame_samples=1024) == [0.0, 0.0]
