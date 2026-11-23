@@ -1,0 +1,47 @@
+# Copia este archivo como config.toml y ajusta los comandos a tu equipo.
+
+[provider]
+# CLI que responde. Ejemplos: ["claude", "-p"], ["opencode", "run"], ["codex", "exec"]
+command = ["claude", "-p"]
+# resume reutiliza la sesión del CLI; oneshot envía el historial en cada llamada.
+session_mode = "resume"
+# Solo se usan en resume si el CLI admite reanudar por id.
+session_flag = "--resume"
+session_id_regex = "^SESSION=(.+)$"
+timeout_s = 60.0
+# El modelo NO recibe información de animación: solo conversación y órdenes válidas.
+prompt_template = "{history}\n{text}"
+
+# El modelo puede pedir ABRIR=alias solo con alias de esta lista.
+[apps]
+firefox = "firefox --new-window"
+code = "code"
+terminal = "konsole"
+
+# El avatar se ancla justo debajo del panel superior (margin = altura del panel).
+[zones.barra]
+anchor = "top"
+margin = 32
+
+[zones.izquierda]
+anchor = "left"
+margin = 12
+
+[zones.derecha]
+anchor = "right"
+margin = 12
+
+[zones.flotante]
+anchor = "floating"
+x = 400
+y = 300
+
+[voice]
+# Sustituye por tus comandos reales; deja las listas vacías para desactivar.
+stt_command = ["whisper-cli", "-m", "models/ggml-tiny.bin", "-f", "-"]
+tts_command = ["piper", "--model", "models/voice.onnx", "--output_raw"]
+play_command = ["paplay", "--raw", "--format=s16le", "--rate=16000", "--channels=1"]
+capture_command = ["ffmpeg", "-f", "pulse", "-i", "default", "-t", "{duration}", "-f", "s16le", "-"]
+sample_rate = 16000
+frame_samples = 1024
+enabled = true
