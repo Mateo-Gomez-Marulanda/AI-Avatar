@@ -1,0 +1,13 @@
+[provider]
+command = ["fake-cli"]
+session_mode = "oneshot"
+
+[apps]
+firefox = "firefox"
+
+[zones.barra]
+anchor = "top"
+margin = 32
+
+[voice]
+enabled = false

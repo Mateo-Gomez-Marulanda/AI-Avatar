@@ -1,3 +1,4 @@
+from pathlib import Path
 from types import SimpleNamespace
 
 import gi
@@ -11,9 +12,11 @@ from alive.domain.config import load_config
 from alive.domain.geometry import Rect
 from alive.ui import avatar_view as av
 
+CONFIG = Path(__file__).parent / "fixtures" / "fake_config.toml"
+
 
 def make_view():
-    view = av.AvatarView(load_config("/tmp/opencode/fake_config.toml"), Rect(0, 0, 1366, 768))
+    view = av.AvatarView(load_config(CONFIG), Rect(0, 0, 1366, 768))
     events = []
     view.set_callbacks(lambda: events.append("drag"), lambda z: events.append(z),
                        lambda: events.append("panel"))
@@ -47,3 +50,39 @@ def test_drag_grabs_pointer_until_release(monkeypatch):
     assert events[0] == "grab_add"
     assert "grab_remove" in events
     assert "drag" in events and "panel" not in events
+
+
+def test_second_drag_during_snap_does_not_jump_back(monkeypatch):
+    view, _ = make_view()
+    monkeypatch.setattr(av.Gtk.Widget, "grab_add", lambda w: None)
+    monkeypatch.setattr(av.Gtk.Widget, "grab_remove", lambda w: None)
+    placed = []
+    monkeypatch.setattr(view, "_place_free", lambda x, y: placed.append((int(x), int(y))))
+
+    view._button_press(None, ev())
+    view._motion(None, ev(80, 80, Gdk.ModifierType.BUTTON1_MASK))
+    view._button_release(None, ev(80, 80))
+    assert view._snap_to is not None
+
+    view._button_press(None, ev(dx=-80, dy=-80))
+    view._motion(None, ev(dx=120, dy=100, state=Gdk.ModifierType.BUTTON1_MASK))
+    view.render(SimpleNamespace(mouth=0.0, snap_progress=0.0))
+    assert view._snap_to is None
+    assert placed[-1] == (703, 132)
+
+
+def test_click_during_snap_keeps_the_animation(monkeypatch):
+    view, _ = make_view()
+    monkeypatch.setattr(av.Gtk.Widget, "grab_add", lambda w: None)
+    monkeypatch.setattr(av.Gtk.Widget, "grab_remove", lambda w: None)
+
+    view._button_press(None, ev())
+    view._motion(None, ev(80, 80, Gdk.ModifierType.BUTTON1_MASK))
+    view._button_release(None, ev(80, 80))
+    assert view._snap_to is not None
+
+    view._button_press(None, ev())
+    view._button_release(None, ev())
+    assert view._snap_to is not None
+    view.render(SimpleNamespace(mouth=0.0, snap_progress=1.0))
+    assert view._snap_to is None

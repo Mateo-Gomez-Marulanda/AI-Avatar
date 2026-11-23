@@ -193,6 +193,7 @@ class AvatarView:
             if not _is_drag(event.x_root - origin[0], event.y_root - origin[1]):
                 return False
             self._dragging = True
+            self._snap_to = None
             self.on_drag_start()
         x = event.x_root - self.monitor.x - self._drag_offset[0]
         y = event.y_root - self.monitor.y - self._drag_offset[1]

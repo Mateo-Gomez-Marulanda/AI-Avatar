@@ -106,3 +106,24 @@ def test_failed_transcription_shows_bubble():
     m = make(engine=engine, view=V(), ai=object(), voice=Voice(), launcher=object())
     m.ptt_end(0.5)
     assert m.view.bubble == "No pude escuchar"
+
+def test_missing_tts_does_not_break_text_reply():
+    from alive.domain.animation import AnimationEngine
+    from alive.domain.contracts import AiReply, ProviderError
+    class V:
+        def __init__(self): self.bubble = None
+        def show_bubble(self, text, ms): self.bubble = text
+        def hide_bubble(self): pass
+        def render(self, f): pass
+        def set_click_through(self, e): pass
+        def snap_to(self, z): pass
+    class A:
+        def ask(self, prompt, history): return AiReply("Hola sin voz")
+    class Voice:
+        def record(self, s): return b""
+        def transcribe(self, a): return ""
+        def speak(self, text, on_level): raise ProviderError("sin tts")
+    engine, v = AnimationEngine(), V()
+    m = make(engine=engine, view=v, ai=A(), voice=Voice(), launcher=object())
+    m.submit_text("¿qué tal?")
+    assert v.bubble == "Hola sin voz" and engine.state == "hablando"

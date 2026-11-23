@@ -66,10 +66,13 @@ class Mediator:
         self.engine.speak(text, self.clock())
         self.view.show_bubble(text, self.config.bubble_ms_per_char)
         self.history = (*self.history, text)
-        self.voice.speak(
-            text,
-            on_level=lambda level, now: self.engine.set_audio_level(level, now),
-        )
+        try:
+            self.voice.speak(
+                text,
+                on_level=lambda level, now: self.engine.set_audio_level(level, now),
+            )
+        except ProviderError:
+            pass  # La voz es opcional; el globo con la respuesta ya es visible.
 
     def ptt_start(self) -> None:
         self.engine.transition_to("escuchando", self.clock())
