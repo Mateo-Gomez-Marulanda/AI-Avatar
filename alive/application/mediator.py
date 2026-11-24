@@ -47,6 +47,12 @@ class _CommandOutcome:
     error: str | None = None
 
 
+@dataclass(frozen=True)
+class _Transcript:
+    text: str = ""
+    error: str | None = None
+
+
 class Mediator:
     def __init__(
         self,
@@ -97,11 +103,11 @@ class Mediator:
     def _call_model(self) -> _ModelReply:
         try:
             reply = self.ai.ask(build_prompt(self.system_prompt, self.conversation))
+            return _ModelReply(text=reply.text)
         except ProviderError as exc:
             return _ModelReply(error=str(exc))
         except Exception as exc:
             return _ModelReply(error=f"Error inesperado: {exc}")
-        return _ModelReply(text=reply.text)
 
     def _on_model(self, reply: _ModelReply) -> None:
         if reply.error:
@@ -266,11 +272,13 @@ class Mediator:
             return
         self.engine.transition_to("escuchando", self.clock())
 
-    def _transcribe(self, seconds: float) -> str:
+    def _transcribe(self, seconds: float) -> _Transcript:
         try:
-            return self.voice.transcribe(self.voice.record(seconds))
+            return _Transcript(text=self.voice.transcribe(self.voice.record(seconds)))
         except ProviderError:
-            return ""
+            return _Transcript()
+        except Exception as exc:
+            return _Transcript(error=f"No pude transcribir: {exc}")
 
     def ptt_end(self, held_seconds: float) -> None:
         if self.busy:
@@ -278,9 +286,12 @@ class Mediator:
         work = lambda: self._transcribe(held_seconds)
         self.background.run(work, self._on_transcript)
 
-    def _on_transcript(self, text: str) -> None:
-        if text.strip():
-            self.submit_text(text)
+    def _on_transcript(self, transcript: _Transcript) -> None:
+        if transcript.error:
+            self._end_with_error(transcript.error)
+            return
+        if transcript.text.strip():
+            self.submit_text(transcript.text)
         else:
             self.view.show_bubble("No pude escuchar", self.config.bubble_ms_per_char)
             self.engine.idle(self.clock())

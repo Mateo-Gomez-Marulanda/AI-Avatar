@@ -36,9 +36,11 @@ class ApprovalDialog:
         share_output: bool = True,
         parent=None,
         on_decision: Callable[[bool], None] | None = None,
+        command_timeout_s: float | None = None,
     ) -> None:
         self.request = request
         self.timeout_s = timeout_s
+        self.command_timeout_s = command_timeout_s
         self.share_output = share_output
         self.parent = parent
         self.on_decision = on_decision
@@ -85,9 +87,15 @@ class ApprovalDialog:
         directorio.set_xalign(0.0)
         area.add(directorio)
 
-        limite = Gtk.Label(label=f"Tiempo límite: {timeout_s:g} s")
-        limite.set_xalign(0.0)
-        area.add(limite)
+        decision = Gtk.Label(label=f"Tiempo para decidir: {timeout_s:g} s")
+        decision.set_xalign(0.0)
+        area.add(decision)
+        if command_timeout_s is not None:
+            execution = Gtk.Label(
+                label=f"Tiempo de ejecución: {command_timeout_s:g} s"
+            )
+            execution.set_xalign(0.0)
+            area.add(execution)
 
         salida = (
             "La salida se enviará al modelo"
@@ -156,8 +164,10 @@ class GtkApprover:
         timeout_s: float = 120.0,
         share_output: bool = True,
         parent=None,
+        command_timeout_s: float | None = None,
     ) -> None:
         self.timeout_s = timeout_s
+        self.command_timeout_s = command_timeout_s
         self.share_output = share_output
         self.parent = parent
         self.dialog: ApprovalDialog | None = None
@@ -171,5 +181,6 @@ class GtkApprover:
             share_output=self.share_output,
             parent=self.parent,
             on_decision=on_decision,
+            command_timeout_s=self.command_timeout_s,
         )
         self.dialog.present()

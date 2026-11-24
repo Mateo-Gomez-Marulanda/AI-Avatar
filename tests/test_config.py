@@ -78,6 +78,14 @@ players = []
     assert c.music.players == []
 
 
+@pytest.mark.parametrize("valor", ["0", "-1", "-0.5"])
+def test_rejects_nonpositive_idle_switch(tmp_path, valor):
+    p = tmp_path / "c.toml"
+    p.write_text(f'idle_switch_s = {valor}\n[provider]\ncommand = ["x"]\n')
+    with pytest.raises(ConfigError, match="idle_switch_s debe ser mayor que 0"):
+        load_config(p)
+
+
 def test_rejects_old_session_keys(tmp_path):
     p = tmp_path / "c.toml"
     p.write_text('[provider]\ncommand = ["x"]\nsession_mode = "oneshot"\n')

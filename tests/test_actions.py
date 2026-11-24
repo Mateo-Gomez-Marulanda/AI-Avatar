@@ -1,6 +1,8 @@
 # tests/test_actions.py
 import json
 
+import pytest
+
 from alive.domain.actions import AppAction, CommandAction, parse_action
 
 
@@ -53,3 +55,16 @@ def test_unknown_type_is_rejected():
 def test_empty_text_without_action_is_kept():
     parsed = parse_action("")
     assert parsed.text == "" and parsed.action is None and parsed.error is None
+
+
+@pytest.mark.parametrize("alias", [
+    123,
+    ["firefox", 123],
+    ["firefox", ""],
+    [],
+    ["", "firefox"],
+])
+def test_invalid_alias_rejects_the_whole_action(alias):
+    parsed = parse_action(block({"tipo": "app", "alias": alias}))
+    assert parsed.action is None
+    assert "Acción inválida" in parsed.error and "alias" in parsed.error

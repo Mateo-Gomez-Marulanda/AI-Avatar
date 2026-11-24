@@ -207,7 +207,7 @@ def load_config(path: str | Path) -> Config:
     idle_switch_s = data.get("idle_switch_s", 20.0)
     bubble_ms_per_char = data.get("bubble_ms_per_char", 45)
     drag_snap_ms = data.get("drag_snap_ms", 250)
-    _check_number(idle_switch_s, "idle_switch_s")
+    _check_number(idle_switch_s, "idle_switch_s", minimum=0, inclusive=False)
     _check_number(bubble_ms_per_char, "bubble_ms_per_char", integer=True)
     _check_number(drag_snap_ms, "drag_snap_ms", integer=True)
 

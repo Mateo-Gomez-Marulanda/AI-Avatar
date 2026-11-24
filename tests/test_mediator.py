@@ -3,7 +3,8 @@ from alive.domain.config import CommandConfig
 from alive.domain.contracts import ProviderError
 from support import (
     DeferredBackground, FakeAi, FakeApprover, FakeExecutor, FakeLauncher,
-    FakeView, FakeVoice, SilentApprover, make_config, make_mediator,
+    FakeView, FakeVoice, MalformedAi, SilentApprover, WorkerCrashBackground,
+    make_config, make_mediator,
 )
 
 
@@ -170,3 +171,74 @@ def test_executor_error_is_visible_and_frees_turn():
     m.submit_text("ejecuta")
     assert "No pude ejecutar el comando: boom" in m.view.bubbles[-1]
     assert m.busy is False and m.engine.state == "sentado"
+
+
+def test_malformed_ai_reply_is_visible_and_frees_turn():
+    m = make_mediator(ai=MalformedAi(), background=WorkerCrashBackground())
+    m.submit_text("hola")
+    assert any("Error inesperado" in b for b in m.view.bubbles)
+    assert m.busy is False and m.engine.state == "sentado"
+
+
+def test_non_provider_transcription_error_is_visible():
+    voice = FakeVoice()
+    voice.transcribe_error = RuntimeError("sin motor")
+    m = make_mediator(ai=FakeAi([]), voice=voice, background=WorkerCrashBackground())
+    m.ptt_end(0.5)
+    assert any("No pude transcribir: sin motor" in b for b in m.view.bubbles)
+    assert m.engine.state == "sentado"
+
+
+def test_provider_transcription_failure_keeps_empty_result_bubble():
+    voice = FakeVoice()
+    voice.transcribe_error = ProviderError("sin motor")
+    m = make_mediator(ai=FakeAi([]), voice=voice)
+    m.ptt_end(0.5)
+    assert m.view.bubbles[-1] == "No pude escuchar"
+    assert m.engine.state == "sentado"
+
+
+def test_ptt_is_ignored_while_busy():
+    background = DeferredBackground()
+    voice = FakeVoice()
+    m = make_mediator(ai=FakeAi(["Hola"]), background=background, voice=voice)
+    m.submit_text("uno")
+    m.ptt_start()
+    m.ptt_end(0.5)
+    assert voice.records == []
+    assert len(background.pending) == 1
+    assert m.engine.state == "pensando"
+
+
+def test_drag_end_delegates_to_engine_with_current_time():
+    class EngineSpy:
+        def __init__(self):
+            self.ended = None
+        def end_drag(self, now):
+            self.ended = now
+
+    engine = EngineSpy()
+    m = make_mediator(ai=FakeAi([]), engine=engine, clock=lambda: 7.0)
+    m.on_drag_end("barra")
+    assert engine.ended == 7.0
+
+
+def test_missing_tts_does_not_break_text_reply():
+    voice = FakeVoice()
+    voice.speak_error = RuntimeError("sin tts")
+    m = make_mediator(ai=FakeAi(["Hola sin voz"]), voice=voice)
+    m.submit_text("¿qué tal?")
+    assert m.view.bubbles[-1] == "Hola sin voz"
+    assert voice.spoken == [] and m.busy is False
+
+
+def test_voice_speaks_final_reply_after_command():
+    voice = FakeVoice()
+    m = make_mediator(
+        ai=FakeAi([command(), "Listo"]),
+        voice=voice,
+        approver=FakeApprover(True),
+        executor=FakeExecutor(),
+    )
+    m.submit_text("ejecuta")
+    assert voice.spoken == ["Listo"]

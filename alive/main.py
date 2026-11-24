@@ -85,6 +85,7 @@ def build(config_path: str | Path) -> tuple[Mediator, AvatarView, InputPanel, An
         timeout_s=config.commands.approval_timeout_s,
         share_output=config.commands.share_output_with_model,
         parent=view.window,
+        command_timeout_s=config.commands.timeout_s,
     )
     mediator = Mediator(
         engine=engine,

@@ -15,6 +15,18 @@ class DeferredBackground:
         done(work())
 
 
+class WorkerCrashBackground:
+    """Imita a GtkBackgroundRunner: si work lanza, done nunca se programa."""
+    def __init__(self): self.pending = []
+    def run(self, work, done):
+        self.pending.append((work, done))
+        try:
+            result = work()
+        except Exception:
+            return
+        done(result)
+
+
 class FakeView:
     def __init__(self): self.bubbles = []
     def show_bubble(self, text, ms): self.bubbles.append(text)
@@ -25,10 +37,22 @@ class FakeView:
 
 
 class FakeVoice:
-    def __init__(self): self.spoken = []
-    def record(self, seconds): return b""
-    def transcribe(self, audio): return ""
-    def speak(self, text, on_level): self.spoken.append(text)
+    def __init__(self):
+        self.spoken = []
+        self.records = []
+        self.transcribe_error = None
+        self.speak_error = None
+    def record(self, seconds):
+        self.records.append(seconds)
+        return b""
+    def transcribe(self, audio):
+        if self.transcribe_error is not None:
+            raise self.transcribe_error
+        return ""
+    def speak(self, text, on_level):
+        if self.speak_error is not None:
+            raise self.speak_error
+        self.spoken.append(text)
 
 
 class FakeLauncher:
@@ -68,6 +92,12 @@ class FakeAi:
         if self.exc is not None:
             raise self.exc
         return AiReply(self.replies.pop(0))
+
+
+class MalformedAi:
+    """Proveedor que devuelve una respuesta sin el campo ``text``."""
+    def ask(self, prompt):
+        return object()
 
 
 def make_config(**kw):

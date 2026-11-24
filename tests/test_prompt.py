@@ -24,6 +24,12 @@ def test_prompt_forbids_visual_decisions():
     assert "ESTADO=" not in p and "ABRIR=" not in p
 
 
+def test_prompt_uses_the_correct_spelling_for_proposal():
+    p = build_system_prompt(APPS, commands_enabled=False)
+    assert "propónla" in p
+    assert "proponela" not in p
+
+
 def test_disabled_commands_are_not_offered():
     p = build_system_prompt(APPS, commands_enabled=False)
     assert "No hay ejecución de comandos disponible" in p

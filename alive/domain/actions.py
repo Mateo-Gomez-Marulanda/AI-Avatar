@@ -10,6 +10,10 @@ _BLOCK = re.compile(r"```alive-accion[ \t]*\r?\n(.*?)```", re.DOTALL)
 
 _COMANDO_MAX = 2000
 _EXPLICACION_MAX = 1000
+_ALIAS_ERROR = (
+    "Acción inválida: alias debe ser un texto no vacío "
+    "o una lista de textos no vacíos"
+)
 
 
 @dataclass(frozen=True)
@@ -59,11 +63,10 @@ def _parse_app(data: dict, text: str) -> ParsedReply:
     elif isinstance(raw, list):
         candidates = raw
     else:
-        candidates = []
-    aliases = tuple(c for c in candidates if isinstance(c, str) and c)
-    if not aliases:
-        return ParsedReply(text, error="Acción inválida: falta el alias")
-    return ParsedReply(text, action=AppAction(aliases))
+        return ParsedReply(text, error=_ALIAS_ERROR)
+    if not candidates or any(not isinstance(c, str) or not c for c in candidates):
+        return ParsedReply(text, error=_ALIAS_ERROR)
+    return ParsedReply(text, action=AppAction(tuple(candidates)))
 
 
 def _parse_comando(data: dict, text: str) -> ParsedReply:

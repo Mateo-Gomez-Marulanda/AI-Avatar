@@ -79,12 +79,25 @@ def test_shows_details_and_warnings():
     ]
     assert "Revisa el comando. La explicación la generó el modelo." in labels
     assert "Directorio: /tmp" in labels
-    assert "Tiempo límite: 120 s" in labels
+    assert "Tiempo para decidir: 120 s" in labels
     assert "La salida no se enviará al modelo" in labels
     assert (
         "No hay terminal interactiva: sudo o los comandos que piden "
         "contraseña pueden fallar."
     ) in labels
+    dialog._decide(False)
+
+
+def test_shows_decision_and_execution_time_distinctly():
+    dialog, _ = make(timeout_s=120.0, command_timeout_s=30.0)
+    labels = [
+        child.get_text()
+        for child in dialog.window.get_content_area().get_children()
+        if isinstance(child, Gtk.Label)
+    ]
+    assert "Tiempo para decidir: 120 s" in labels
+    assert "Tiempo de ejecución: 30 s" in labels
+    assert not any(label.startswith("Tiempo límite") for label in labels)
     dialog._decide(False)
 
 
@@ -117,9 +130,12 @@ def test_present_schedules_timeout_without_running_dialog():
 
 def test_approver_presents_dialog_with_options():
     decisions = []
-    approver = GtkApprover(timeout_s=0.05, share_output=False)
+    approver = GtkApprover(
+        timeout_s=0.05, share_output=False, command_timeout_s=30.0
+    )
     approver.request(REQUEST, decisions.append)
     assert approver.dialog.timeout_s == 0.05
+    assert approver.dialog.command_timeout_s == 30.0
     assert approver.dialog.share_output is False
     assert approver.dialog.window.get_visible() is True
     approver.dialog._decide(False)
