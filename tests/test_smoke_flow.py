@@ -5,7 +5,7 @@ from dataclasses import replace
 from alive.application.audio import VoiceService
 from alive.application.commands import ShellCommandExecutor
 from alive.infrastructure.providers.cli import CliProvider, SubprocessRunner
-from alive.domain.config import ProviderConfig, VoiceConfig
+from alive.domain.config import ProviderConfig, VoiceConfig, CommandConfig
 from support import (
     FakeAi, FakeApprover, FakeBackground, FakeLauncher, FakeTimer, FakeView,
     FakeVoice, InlineBackground, make_config, make_mediator,
@@ -37,7 +37,7 @@ print(json.dumps({{"type": "text", "sessionID": "ses_x",
     view, voice, launcher = FakeView(), FakeVoice(), FakeLauncher()
     approver = FakeApprover(True)
     executor = ShellCommandExecutor(timeout_s=5.0, workdir=str(tmp_path))
-    base = make_config()
+    base = make_config(commands=CommandConfig(share_output_with_model=True))
     mediator = make_mediator(
         ai=ai, view=view, voice=voice, launcher=launcher, approver=approver,
         executor=executor, background=InlineBackground(),

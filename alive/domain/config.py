@@ -67,7 +67,7 @@ class CommandConfig:
     max_per_turn: int = 3
     approval_timeout_s: float = 120.0
     working_dir: str = "~"
-    share_output_with_model: bool = True
+    share_output_with_model: bool = False
 
 
 @dataclass(frozen=True)

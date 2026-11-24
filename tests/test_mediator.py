@@ -63,7 +63,8 @@ def test_unknown_app_is_not_opened():
 def test_command_requests_approval_and_runs_once_approved():
     ai = FakeAi([command(), "Listo"])
     approver, executor = FakeApprover(True), FakeExecutor(CommandResult(0, "hola", "", False, 0.1))
-    m = make_mediator(ai=ai, approver=approver, executor=executor)
+    m = make_mediator(ai=ai, approver=approver, executor=executor,
+                      config=make_config(commands=CommandConfig(share_output_with_model=True)))
     m.submit_text("ejecuta printf hola")
     assert approver.requests[0].command == "printf hola"
     assert executor.commands == ["printf hola"]
@@ -105,7 +106,7 @@ def test_unshared_output_never_reaches_later_prompts():
 
 def test_command_limit_stops_the_turn():
     ai = FakeAi([command(), command()])
-    cfg = make_config(commands=CommandConfig(max_per_turn=2))
+    cfg = make_config(commands=CommandConfig(max_per_turn=2, share_output_with_model=True))
     approver, executor = FakeApprover(True), FakeExecutor()
     m = make_mediator(ai=ai, config=cfg, approver=approver, executor=executor)
     m.submit_text("haz dos cosas")
@@ -239,6 +240,7 @@ def test_voice_speaks_final_reply_after_command():
         voice=voice,
         approver=FakeApprover(True),
         executor=FakeExecutor(),
+        config=make_config(commands=CommandConfig(share_output_with_model=True)),
     )
     m.submit_text("ejecuta")
     assert voice.spoken == ["Listo"]

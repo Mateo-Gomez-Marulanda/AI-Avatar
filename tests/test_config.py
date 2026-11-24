@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from alive.domain.config import ConfigError, load_config
+from alive.domain.config import CommandConfig, ConfigError, load_config
 
 EXAMPLE = Path(__file__).parent.parent / "config.toml.example"
 
@@ -14,6 +14,10 @@ def test_example_uses_opencode_with_agent_and_archived():
     assert cfg.provider.output_format == "json"
     assert cfg.provider.workdir == "~"
 
+
+def test_default_does_not_share_command_output():
+    assert CommandConfig().share_output_with_model is False
+    assert load_config(EXAMPLE).commands.share_output_with_model is False
 
 def test_example_has_new_sections():
     cfg = load_config(EXAMPLE)

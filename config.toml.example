@@ -24,7 +24,7 @@ max_output_bytes = 8192
 max_per_turn = 3
 approval_timeout_s = 120.0
 working_dir = "~"
-share_output_with_model = true
+share_output_with_model = false
 
 [conversation]
 max_chars = 6000
