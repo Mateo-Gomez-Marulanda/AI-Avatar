@@ -1,13 +1,13 @@
 # Copia este archivo como config.toml y ajusta los comandos a tu equipo.
 
 [provider]
-# CLI que responde. Ejemplos: ["claude", "-p"], ["opencode", "run"], ["codex", "exec"]
-command = ["claude", "-p"]
-# resume reutiliza la sesión del CLI; oneshot envía el historial en cada llamada.
-session_mode = "resume"
+# CLI que responde. Por defecto OpenCode; otros ejemplos: ["claude", "-p"], ["codex", "exec"]
+command = ["opencode", "run"]
+# oneshot envía el historial en cada llamada, sin depender de ids de sesión.
+session_mode = "oneshot"
 # Solo se usan en resume si el CLI admite reanudar por id.
-session_flag = "--resume"
-session_id_regex = "^SESSION=(.+)$"
+session_flag = ""
+session_id_regex = ""
 timeout_s = 60.0
 # El modelo NO recibe información de animación: solo conversación y estas dos órdenes:
 #   ESTADO=sentado|parado|musica   ABRIR=<alias de [apps]>

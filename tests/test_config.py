@@ -1,4 +1,15 @@
+from pathlib import Path
+
 from alive.domain.config import ConfigError, load_config
+
+EXAMPLE = Path(__file__).parent.parent / "config.toml.example"
+
+
+def test_example_provider_is_opencode():
+    cfg = load_config(EXAMPLE)
+    assert cfg.provider.command == ["opencode", "run"]
+    assert cfg.provider.session_mode == "oneshot"
+
 
 def test_load_config_reads_provider_apps_and_zones(tmp_path):
     p = tmp_path / "c.toml"

@@ -119,7 +119,10 @@ módulos de cada capa para detectar que la reorganización sigue intacta.
 
 ## Configuración
 
-- **`[provider]`**: `command` es la única pieza ligada al proveedor.
+- **`[provider]`**: `command` es la única pieza ligada al proveedor. El ejemplo
+  usa OpenCode: `command = ["opencode", "run"]` con
+  `session_mode = "oneshot"`, que envía el historial en cada llamada sin depender
+  de ids de sesión. Otras opciones:
 
   | Proveedor | `command` |
   | --- | --- |
@@ -128,8 +131,8 @@ módulos de cada capa para detectar que la reorganización sigue intacta.
   | OpenAI Codex | `["codex", "exec"]` |
 
   `session_mode = "resume"` reutiliza la sesión del CLI; con `session_flag` y
-  `session_id_regex` se extrae el id de la salida. Con `oneshot` se envía el
-  historial en cada llamada. `prompt_template` usa `{history}` y `{text}`.
+  `session_id_regex` se extrae el id de la salida. `prompt_template` usa
+  `{history}` y `{text}`.
 - **`[apps]`**: whitelist `alias = "comando con argumentos"`. El modelo solo
   puede pedir `ABRIR=alias` si el alias existe; el comando se divide con
   `shlex`, nunca pasa por un shell.
