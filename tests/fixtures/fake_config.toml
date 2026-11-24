@@ -1,6 +1,5 @@
 [provider]
 command = ["fake-cli"]
-session_mode = "oneshot"
 
 [apps]
 firefox = "firefox"

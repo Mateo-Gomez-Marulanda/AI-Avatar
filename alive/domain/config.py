@@ -8,7 +8,6 @@ from pathlib import Path
 from typing import Any
 
 ANCHORS = frozenset({"top", "left", "right", "bottom", "floating"})
-SESSION_MODES = frozenset({"resume", "oneshot"})
 
 
 class ConfigError(ValueError):
@@ -27,11 +26,7 @@ class Zone:
 @dataclass(frozen=True)
 class ProviderConfig:
     command: list[str]
-    session_mode: str = "oneshot"
-    session_flag: str = ""
-    session_id_regex: str = ""
     timeout_s: float = 60.0
-    prompt_template: str = ""
     output_format: str = "text"
     workdir: str = ""
 
@@ -88,10 +83,6 @@ def load_config(path: str | Path) -> Config:
     command = provider_data.get("command")
     if not isinstance(command, list) or not command:
         raise ConfigError("provider.command debe ser una lista no vacía")
-    provider_data = dict(provider_data)
-    provider_data.setdefault("session_mode", "oneshot")
-    if provider_data["session_mode"] not in SESSION_MODES:
-        raise ConfigError("provider.session_mode debe ser resume u oneshot")
     provider = _build(ProviderConfig, provider_data, "provider")
 
     apps_data = _section(data, "apps")

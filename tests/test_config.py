@@ -1,14 +1,28 @@
-from pathlib import Path
+import pytest
 
 from alive.domain.config import ConfigError, load_config
 
-EXAMPLE = Path(__file__).parent.parent / "config.toml.example"
 
+def test_obsolete_session_keys_are_rejected(tmp_path):
+    p = tmp_path / "c.toml"
+    p.write_text('''\
+[provider]
+command = ["x"]
+session_mode = "oneshot"
+session_flag = "--session"
+session_id_regex = "^SESSION=(.+)$"
+prompt_template = "{history} | {text}"
 
-def test_example_provider_is_opencode():
-    cfg = load_config(EXAMPLE)
-    assert cfg.provider.command == ["opencode", "run"]
-    assert cfg.provider.session_mode == "oneshot"
+[apps]
+[zones]
+[voice]
+''')
+    with pytest.raises(ConfigError) as exc:
+        load_config(p)
+    message = str(exc.value)
+    assert "claves desconocidas" in message
+    for key in ("session_mode", "session_flag", "session_id_regex", "prompt_template"):
+        assert key in message
 
 
 def test_load_config_reads_provider_apps_and_zones(tmp_path):
@@ -16,8 +30,6 @@ def test_load_config_reads_provider_apps_and_zones(tmp_path):
     p.write_text('''\
 [provider]
 command = ["claude", "-p"]
-session_mode = "resume"
-prompt_template = "{history} | {text}"
 
 [apps]
 firefox = "firefox --new-window"

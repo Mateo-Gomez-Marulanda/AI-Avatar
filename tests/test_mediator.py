@@ -6,7 +6,7 @@ class Inline:
     def run(self, work, done): done(work())
 
 def make(**kw):
-    cfg = Config(provider=ProviderConfig(command=["x"], session_mode="oneshot"),
+    cfg = Config(provider=ProviderConfig(command=["x"]),
                  apps={"firefox": "firefox"}, zones={}, voice=VoiceConfig([], [], [], []))
     base = dict(engine=kw.get("engine"), view=kw.get("view"), ai=kw.get("ai"),
                 voice=kw.get("voice"), launcher=kw.get("launcher"),
