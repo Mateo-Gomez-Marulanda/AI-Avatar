@@ -44,6 +44,10 @@ proveedor, se traduce al mensaje «OpenCode alcanzó el límite gratuito; conect
 proveedor o cambia de modelo». No fue un error de agente («Agent not found»):
 el agente `--agent alive` sí se resolvió.
 
+Lazo cerrado: la salida de `opencode auth list` («No authenticated
+integrations») es una observación independiente y **no** la causa del fallo del
+smoke; la causa real fue el límite gratuito (`provider.free-limit`, HTTP 429).
+
 ### 1.3 Agente `alive`
 
 Copia ejecutada (único cambio fuera del repo, aprobado por el usuario):
@@ -114,9 +118,14 @@ globo 45 ms/char, snap 250 ms.
 
 ## 7. Bloqueos del cierre (tres)
 
-1. **Autenticación de OpenCode:** `opencode auth list` → «No authenticated
-   integrations»; el smoke real falló con `provider.free-limit` (HTTP 429). Bloqueo
-   real, documentado literalmente (§1.2). No se instala proveedor ni modelo.
+1. **OpenCode sin modelo verificable:** dos hechos separados:
+   - (a) Observación de autenticación: `opencode auth list` → «No authenticated
+      integrations». Es una observación previa, independiente del smoke.
+   - (b) Causa real del fallo del smoke: error `provider.free-limit` (HTTP 429,
+      `FreeUsageLimitError`, «Free usage limit reached»). El smoke real falló por
+      el límite gratuito del modelo, no por falta de autenticación.
+   Ambos impiden la verificación con modelo real; el fallo del smoke se registró
+   literalmente (§1.2) y no se instala proveedor ni modelo.
 2. **Voz sin binarios:** `ffmpeg` y `paplay` presentes; faltan `whisper-cli` y
    `piper`. Bloqueo previsto; no se instalan motores.
 3. **Arte placeholder:** el avatar sigue siendo el placeholder vectorial hasta que
