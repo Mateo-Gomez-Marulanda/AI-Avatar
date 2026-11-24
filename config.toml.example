@@ -4,6 +4,7 @@ idle_states = ["sentado", "parado"]
 idle_switch_s = 20.0
 bubble_ms_per_char = 45
 drag_snap_ms = 250
+quiet_zone = "no_molestar"
 
 [provider]
 command = ["opencode", "run", "--format", "json", "--agent", "alive", "--archived"]
@@ -50,6 +51,11 @@ margin = 12
 anchor = "floating"
 x = 400
 y = 300
+
+# «No molestar» lleva el avatar a esta esquina y deja pasar los clics.
+[zones.no_molestar]
+anchor = "bottom-right"
+margin = 12
 
 [voice]
 # Sustituye por tus comandos reales. Con enabled=false se oculta el micrófono

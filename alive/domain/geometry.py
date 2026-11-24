@@ -25,6 +25,8 @@ def zone_rect(monitor: Rect, zone: Zone, size: tuple[int, int]) -> Rect:
         return Rect(monitor.width - width - zone.margin, (monitor.height - height) // 2, width, height)
     if zone.anchor == "bottom":
         return Rect((monitor.width - width) // 2, monitor.height - height - zone.margin, width, height)
+    if zone.anchor == "bottom-right":
+        return Rect(monitor.width - width - zone.margin, monitor.height - height - zone.margin, width, height)
     return Rect(zone.x, zone.y, width, height)
 
 

@@ -9,8 +9,9 @@ from typing import Any
 
 from alive.domain.animation import STATES
 
-ANCHORS = frozenset({"top", "left", "right", "bottom", "floating"})
+ANCHORS = frozenset({"top", "left", "right", "bottom", "bottom-right", "floating"})
 ROOT_KEYS = frozenset({
+    "quiet_zone",
     "provider",
     "apps",
     "zones",
@@ -94,6 +95,7 @@ class Config:
     idle_switch_s: float = 20.0
     bubble_ms_per_char: int = 45
     drag_snap_ms: int = 250
+    quiet_zone: str = "no_molestar"
 
 
 def _section(data: dict[str, Any], name: str) -> dict[str, Any]:
@@ -172,6 +174,9 @@ def load_config(path: str | Path) -> Config:
         zones[str(name)] = _build(Zone, values, f"zones.{name}")
 
     voice = _build(VoiceConfig, _section(data, "voice"), "voice")
+    _check_number(voice.sample_rate, "voice.sample_rate", minimum=1, integer=True)
+    _check_number(voice.frame_samples, "voice.frame_samples", minimum=1, integer=True)
+    _check_number(voice.timeout_s, "voice.timeout_s", minimum=0, inclusive=False)
 
     commands = _build(CommandConfig, _section(data, "commands"), "commands")
     _check_bool(commands.enabled, "commands.enabled")
@@ -207,6 +212,9 @@ def load_config(path: str | Path) -> Config:
     idle_switch_s = data.get("idle_switch_s", 20.0)
     bubble_ms_per_char = data.get("bubble_ms_per_char", 45)
     drag_snap_ms = data.get("drag_snap_ms", 250)
+    quiet_zone = data.get("quiet_zone", "no_molestar")
+    if not isinstance(quiet_zone, str) or not quiet_zone.strip():
+        raise ConfigError("quiet_zone debe ser un texto no vacío")
     _check_number(idle_switch_s, "idle_switch_s", minimum=0, inclusive=False)
     _check_number(bubble_ms_per_char, "bubble_ms_per_char", integer=True)
     _check_number(drag_snap_ms, "drag_snap_ms", integer=True)
@@ -223,4 +231,5 @@ def load_config(path: str | Path) -> Config:
         idle_switch_s=idle_switch_s,
         bubble_ms_per_char=bubble_ms_per_char,
         drag_snap_ms=drag_snap_ms,
+        quiet_zone=quiet_zone,
     )

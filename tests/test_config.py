@@ -105,3 +105,45 @@ def test_rejects_unknown_idle_state(tmp_path):
     p.write_text('idle_states = ["bailando"]\n[provider]\ncommand = ["x"]\n')
     with pytest.raises(ConfigError):
         load_config(p)
+
+
+def test_config_accepts_bottom_right_quiet_zone(tmp_path):
+    p = tmp_path / "config.toml"
+    p.write_text('''
+quiet_zone = "no_molestar"
+[provider]
+command = ["x"]
+[apps]
+[music]
+[voice]
+[commands]
+[conversation]
+[zones.no_molestar]
+anchor = "bottom-right"
+margin = 12
+''')
+    cfg = load_config(p)
+    assert cfg.quiet_zone == "no_molestar"
+    assert cfg.zones["no_molestar"].anchor == "bottom-right"
+
+
+def test_config_rejects_invalid_voice_numbers(tmp_path):
+    p = tmp_path / "config.toml"
+    p.write_text('''
+[provider]
+command = ["x"]
+[apps]
+[music]
+[voice]
+sample_rate = 0
+[commands]
+[conversation]
+''')
+    with pytest.raises(ConfigError, match="sample_rate"):
+        load_config(p)
+
+
+def test_example_has_quiet_zone():
+    cfg = load_config(EXAMPLE)
+    assert cfg.quiet_zone == "no_molestar"
+    assert cfg.zones["no_molestar"].anchor == "bottom-right"

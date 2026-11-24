@@ -17,3 +17,7 @@ def test_nearest_zone_picks_closest_edge():
     zones = {"barra": Zone("top", 32), "izq": Zone("left", 10), "der": Zone("right", 10)}
     assert nearest_zone(MON, (5, 500), zones, SZ) == "izq"
     assert nearest_zone(MON, (1910, 500), zones, SZ) == "der"
+
+def test_bottom_right_zone_rect():
+    assert zone_rect(Rect(0, 0, 1366, 768), Zone("bottom-right", margin=12),
+                     (200, 300)) == Rect(1154, 456, 200, 300)
