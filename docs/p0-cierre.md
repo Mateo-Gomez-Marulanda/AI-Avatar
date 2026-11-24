@@ -64,7 +64,7 @@ El smoke con `--agent alive` resolvió el agente sin error de «Agent not found�
 
 | # | Punto (§11) | Estado real | Evidencia |
 | --- | --- | --- | --- |
-| 1 | Conversación de dos turnos: la segunda pregunta conserva la primera. | ⛔ No verificado en vivo | Sin modelo autenticado; cubierto por tests de dominio (`tests/test_conversation.py`). |
+| 1 | Conversación de dos turnos: la segunda pregunta conserva la primera. | ⛔ No verificado en vivo | Sin verificación con modelo: el smoke falló con `provider.free-limit` (HTTP 429, ver §1.2); cubierto por tests de dominio (`tests/test_conversation.py`). |
 | 2 | «Pensando…» visible mientras se espera al modelo. | ⛔ No verificado en vivo | Estado `pensando` cubierto en tests de mediador; UI en vivo no ejecutada. |
 | 3 | «Abre firefox» abre directo, sin diálogo. | ⛔ No verificado en vivo | Cubierto por tests de acciones/apps (`test_mediator.py`, `test_apps.py`). |
 | 4 | Sin acciones, idle alterna `sentado`/`parado` cada 20 s. | ✅ Verificado | `tests/test_animation.py`. |

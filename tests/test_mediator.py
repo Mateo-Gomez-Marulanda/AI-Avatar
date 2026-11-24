@@ -116,6 +116,25 @@ def test_command_summary_goes_to_panel_not_bubble():
     assert m.busy is False
 
 
+def test_empty_ptt_after_command_clears_stale_status_and_frees_turn():
+    background = DeferredBackground()
+    statuses = []
+    ai = FakeAi([command()])
+    approver, executor = FakeApprover(True), FakeExecutor(CommandResult(0, "hola", "", False, 0.1))
+    m = make_mediator(ai=ai, approver=approver, executor=executor,
+                     config=make_config(commands=CommandConfig(share_output_with_model=False)),
+                     background=background, on_status=lambda b, t: statuses.append((b, t)))
+    m.submit_text("ejecuta")
+    background.flush()
+    background.flush()
+    assert (False, "Comando ejecutado (código 0)") in statuses
+    m.ptt_start()
+    m.ptt_end(0.5)
+    background.flush()
+    assert m.busy is False
+    assert statuses[-1] == (False, "")
+
+
 def test_shared_command_summary_is_not_shown_in_bubble():
     cfg = make_config(commands=CommandConfig(share_output_with_model=True))
     ai = FakeAi([command(), "Listo"])

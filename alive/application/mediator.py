@@ -71,6 +71,13 @@ class Mediator:
         executor: CommandExecutor,
         on_status: Callable[[bool, str], None] | None = None,
     ) -> None:
+        """Inyecta dependencias y arranca el estado del mediador.
+
+        ``on_status`` es opcional en la firma (para tests), pero en la práctica es
+        obligatorio: el resumen de comandos y los estados de turno se comunican
+        exclusivamente por este callback (nunca por la burbuja de la vista).
+        Cualquier consumidor que construya un :class:`Mediator` debe cablearlo.
+        """
         self.engine = engine
         self.view = view
         self.ai = ai
@@ -320,6 +327,7 @@ class Mediator:
         else:
             self.view.show_bubble("No pude escuchar", self.config.bubble_ms_per_char)
             self.engine.idle(self.clock())
+            self._finish_turn()
 
     def toggle_no_molestar(self) -> None:
         now = self.clock()
