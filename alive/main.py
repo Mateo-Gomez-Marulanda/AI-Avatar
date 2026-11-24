@@ -76,6 +76,7 @@ def build(config_path: str | Path) -> tuple[Mediator, AvatarView, InputPanel, An
             "Voz no disponible: faltan herramientas", config.bubble_ms_per_char
         )
 
+    background = GtkBackgroundRunner()
     executor = ShellCommandExecutor(
         config.commands.timeout_s,
         max_output_bytes=config.commands.max_output_bytes,
@@ -95,7 +96,7 @@ def build(config_path: str | Path) -> tuple[Mediator, AvatarView, InputPanel, An
         launcher=launcher,
         config=config,
         clock=time.monotonic,
-        background=GtkBackgroundRunner(),
+        background=background,
         approver=approver,
         executor=executor,
         on_status=panel.set_busy,
@@ -108,10 +109,11 @@ def build(config_path: str | Path) -> tuple[Mediator, AvatarView, InputPanel, An
     if config.music.enabled:
         source = PlayerctlMusicSource(config.music.players)
         monitor = MusicMonitor(source, engine, time.monotonic)
-        # MusicMonitor solo reenvía cambios: sondear no reinicia el idle del motor.
+        # El sondeo va en segundo plano: playerctl no bloquea el hilo GTK.
+        # MusicMonitor solo reenvía cambios: no reinicia el idle del motor.
         GLib.timeout_add(
             max(250, int(config.music.poll_s * 1000)),
-            lambda: (monitor.poll(), True)[1],
+            lambda: (monitor.poll_async(background), True)[1],
         )
     return mediator, view, panel, engine
 

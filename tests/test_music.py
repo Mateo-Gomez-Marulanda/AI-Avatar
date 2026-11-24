@@ -58,3 +58,82 @@ def test_monitor_does_not_forward_unchanged_state():
     assert monitor.poll() is True
     assert monitor.poll() is True
     assert engine.calls == [(True, 7.0)]
+
+
+class FakeBackground:
+    """Captura el trabajo y el callback sin ejecutarlos: imita al hilo GTK."""
+
+    def __init__(self):
+        self.jobs = []
+
+    def run(self, work, done):
+        self.jobs.append((work, done))
+
+
+def test_poll_async_does_not_query_the_source_on_the_calling_thread():
+    consulted = []
+
+    class Source:
+        def is_playing(self):
+            consulted.append(True)
+            return True
+
+    engine = Engine()
+    monitor = MusicMonitor(Source(), engine, lambda: 7.0)
+    background = FakeBackground()
+
+    assert monitor.poll_async(background) is True
+
+    assert consulted == []
+    assert engine.calls == []
+    assert len(background.jobs) == 1
+
+
+def test_poll_async_applies_the_result_when_the_callback_runs():
+    class Source:
+        def is_playing(self): return True
+
+    engine = Engine()
+    monitor = MusicMonitor(Source(), engine, lambda: 7.0)
+    background = FakeBackground()
+    monitor.poll_async(background)
+
+    work, done = background.jobs[0]
+    assert work() is True
+    done(True)
+
+    assert engine.calls == [(True, 7.0)]
+
+
+def test_poll_async_skips_a_second_probe_while_one_is_pending():
+    class Source:
+        def is_playing(self): return False
+
+    monitor = MusicMonitor(Source(), Engine(), lambda: 7.0)
+    background = FakeBackground()
+
+    assert monitor.poll_async(background) is True
+    assert monitor.poll_async(background) is False
+    assert len(background.jobs) == 1
+
+    _, done = background.jobs[0]
+    done(False)
+    assert monitor.poll_async(background) is True
+    assert len(background.jobs) == 2
+
+
+def test_poll_async_degrades_source_errors_and_releases_the_pending_probe():
+    class Source:
+        def is_playing(self): raise RuntimeError("playerctl roto")
+
+    engine = Engine()
+    monitor = MusicMonitor(Source(), engine, lambda: 7.0)
+    background = FakeBackground()
+    monitor.poll_async(background)
+
+    work, done = background.jobs[0]
+    assert work() is False
+    done(False)
+
+    assert engine.calls == [(False, 7.0)]
+    assert monitor.poll_async(background) is True
