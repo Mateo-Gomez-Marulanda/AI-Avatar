@@ -28,6 +28,12 @@ def ev(dx=0, dy=0, state=0):
                            x_root=683 + dx, y_root=132 + dy, state=state)
 
 
+def ev3(dx=0, dy=0, state=0):
+    event = ev(dx, dy, state)
+    event.button = 3
+    return event
+
+
 def test_small_jitter_is_a_click(monkeypatch):
     view, events = make_view()
     monkeypatch.setattr(av.Gtk.Widget, "grab_add", lambda w: events.append("grab_add"))
@@ -122,3 +128,57 @@ def test_click_during_snap_keeps_the_animation(monkeypatch):
 
 def test_avatar_has_colors_for_action_states():
     assert {"pensando", "esperando", "ejecutando"} <= set(av._STATE_COLORS)
+
+
+def test_right_button_is_ptt_and_does_not_click_or_drag(monkeypatch):
+    events = []
+    view = av.AvatarView(load_config(CONFIG), Rect(0, 0, 1366, 768))
+    view.set_callbacks(
+        lambda: events.append("drag"),
+        lambda zone: events.append(zone),
+        lambda: events.append("panel"),
+        on_ptt_start=lambda: events.append("ptt_start"),
+        on_ptt_end=lambda: events.append("ptt_end"),
+    )
+    monkeypatch.setattr(av.Gtk.Widget, "grab_add", lambda w: None)
+    monkeypatch.setattr(av.Gtk.Widget, "grab_remove", lambda w: None)
+    view._button_press(None, ev3())
+    view._motion(None, ev3(80, 80, Gdk.ModifierType.BUTTON3_MASK))
+    view._button_release(None, ev3(80, 80))
+    assert events == ["ptt_start", "ptt_end"]
+
+
+def test_click_through_ignores_right_button():
+    events = []
+    view = av.AvatarView(load_config(CONFIG), Rect(0, 0, 1366, 768))
+    view.set_callbacks(lambda: None, lambda zone: None, lambda: None,
+                       on_ptt_start=lambda: events.append("ptt_start"))
+    view.set_click_through(True)
+    view._button_press(None, ev3())
+    assert events == []
+
+
+def test_bottom_right_anchors_both_edges():
+    view = av.AvatarView(load_config(CONFIG), Rect(0, 0, 1366, 768))
+    view.config.zones["no_molestar"] = Zone("bottom-right", margin=12)
+    E = GtkLayerShell.Edge
+    view._apply_zone("no_molestar")
+    assert GtkLayerShell.get_anchor(view.window, E.BOTTOM)
+    assert GtkLayerShell.get_anchor(view.window, E.RIGHT)
+    assert not GtkLayerShell.get_anchor(view.window, E.TOP)
+    assert not GtkLayerShell.get_anchor(view.window, E.LEFT)
+    assert GtkLayerShell.get_margin(view.window, E.BOTTOM) == 12
+    assert GtkLayerShell.get_margin(view.window, E.RIGHT) == 12
+
+
+def test_snap_to_rect_interpolates_and_tracks_current_rect(monkeypatch):
+    view = av.AvatarView(load_config(CONFIG), Rect(0, 0, 1366, 768))
+    placed = []
+    monkeypatch.setattr(view, "_place_free", lambda x, y: placed.append((int(x), int(y))))
+    start = view.current_rect()
+    target = Rect(1154, 456, start.width, start.height)
+    view.snap_to(target)
+    view.render(SimpleNamespace(mouth=0.0, snap_progress=0.5))
+    assert placed[-1] == ((start.x + target.x) // 2, (start.y + target.y) // 2)
+    view.render(SimpleNamespace(mouth=0.0, snap_progress=1.0))
+    assert view.current_rect() == target

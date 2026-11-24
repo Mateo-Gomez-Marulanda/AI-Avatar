@@ -51,10 +51,15 @@ class AvatarView:
         self._drag_offset = (0, 0)
         self._drag_origin: Rect | None = None
         self._snap_to: Rect | None = None
+        self._snap_zone: str | None = None
+        self._current_rect = Rect(0, 0, *_SIZE)
+        self._ptt_active = False
         self._zone_name = "flotante"
         self.on_drag_start = lambda: None
         self.on_drag_end = lambda zone: None
         self.on_activate_input = lambda: None
+        self.on_ptt_start = lambda: None
+        self.on_ptt_end = lambda: None
 
         self.window = Gtk.Window(type=Gtk.WindowType.TOPLEVEL)
         self.window.set_app_paintable(True)
@@ -112,10 +117,29 @@ class AvatarView:
 
     # -- configuración -------------------------------------------------
 
-    def set_callbacks(self, on_drag_start, on_drag_end, on_activate_input) -> None:
+    def set_callbacks(
+        self,
+        on_drag_start,
+        on_drag_end,
+        on_activate_input,
+        on_ptt_start=None,
+        on_ptt_end=None,
+    ) -> None:
         self.on_drag_start = on_drag_start
         self.on_drag_end = on_drag_end
         self.on_activate_input = on_activate_input
+        if on_ptt_start is not None:
+            self.on_ptt_start = on_ptt_start
+        if on_ptt_end is not None:
+            self.on_ptt_end = on_ptt_end
+
+    def _resolve_zone(self, name: str) -> Zone:
+        zone = self.config.zones.get(name)
+        if zone is not None:
+            return zone
+        if name == self.config.quiet_zone:
+            return Zone("bottom-right", margin=12)
+        return Zone("floating", x=self.monitor.width // 3, y=self.monitor.height // 3)
 
     def _choose_initial_zone(self) -> str:
         if "barra" in self.config.zones:
@@ -123,11 +147,10 @@ class AvatarView:
         return next(iter(self.config.zones), "flotante")
 
     def _apply_zone(self, name: str) -> None:
-        zone: Zone | None = self.config.zones.get(name)
-        if zone is None:
-            zone = Zone("floating", x=self.monitor.width // 3, y=self.monitor.height // 3)
+        zone = self._resolve_zone(name)
         rect = zone_rect(self.monitor, zone, _SIZE)
         self._zone_name = name
+        self._current_rect = rect
         for edge in (
             GtkLayerShell.Edge.TOP,
             GtkLayerShell.Edge.BOTTOM,
@@ -135,7 +158,11 @@ class AvatarView:
             GtkLayerShell.Edge.RIGHT,
         ):
             GtkLayerShell.set_anchor(self.window, edge, False)
-        if zone.anchor in ("top", "left", "right", "bottom"):
+        if zone.anchor == "bottom-right":
+            for edge in (GtkLayerShell.Edge.BOTTOM, GtkLayerShell.Edge.RIGHT):
+                GtkLayerShell.set_anchor(self.window, edge, True)
+                GtkLayerShell.set_margin(self.window, edge, max(0, zone.margin))
+        elif zone.anchor in ("top", "left", "right", "bottom"):
             edge = {
                 "top": GtkLayerShell.Edge.TOP,
                 "left": GtkLayerShell.Edge.LEFT,
@@ -169,11 +196,19 @@ class AvatarView:
         GtkLayerShell.set_anchor(self.window, GtkLayerShell.Edge.LEFT, True)
         GtkLayerShell.set_margin(self.window, GtkLayerShell.Edge.LEFT, int(x))
         GtkLayerShell.set_margin(self.window, GtkLayerShell.Edge.TOP, int(y))
+        self._current_rect = Rect(int(x), int(y), *_SIZE)
 
     # -- eventos -------------------------------------------------------
 
     def _button_press(self, widget, event) -> bool:
-        if event.button != 1 or self._click_through:
+        if self._click_through:
+            return False
+        if event.button == 3:
+            self._ptt_active = True
+            self.area.grab_add()
+            self.on_ptt_start()
+            return True
+        if event.button != 1:
             return False
         self._dragging = False
         self._drag_offset = (int(event.x), int(event.y))
@@ -188,6 +223,8 @@ class AvatarView:
         return True
 
     def _motion(self, widget, event) -> bool:
+        if self._ptt_active:
+            return True
         if not (event.state & Gdk.ModifierType.BUTTON1_MASK):
             return False
         if not self._dragging:
@@ -198,6 +235,7 @@ class AvatarView:
                 return False
             self._dragging = True
             self._snap_to = None
+            self._snap_zone = None
             self.on_drag_start()
         x = event.x_root - self.monitor.x - self._drag_offset[0]
         y = event.y_root - self.monitor.y - self._drag_offset[1]
@@ -205,6 +243,13 @@ class AvatarView:
         return True
 
     def _button_release(self, widget, event) -> bool:
+        if event.button == 3:
+            if not self._ptt_active:
+                return False
+            self.area.grab_remove()
+            self._ptt_active = False
+            self.on_ptt_end()
+            return True
         self.area.grab_remove()
         if event.button != 1:
             return False
@@ -216,6 +261,7 @@ class AvatarView:
         name = nearest_zone(self.monitor, pointer, self.config.zones, _SIZE)
         zone = self.config.zones.get(name, Zone("floating"))
         self._snap_to = zone_rect(self.monitor, zone, _SIZE)
+        self._snap_zone = name
         self._zone_name = name
         self._snap_from = Rect(
             int(event.x_root - self.monitor.x - self._drag_offset[0]),
@@ -227,6 +273,12 @@ class AvatarView:
         return True
 
     # -- AvatarViewLike ------------------------------------------------
+
+    def current_rect(self) -> Rect:
+        return self._current_rect
+
+    def current_zone(self) -> str:
+        return self._zone_name
 
     def render(self, frame) -> None:
         self.frame = frame
@@ -240,7 +292,13 @@ class AvatarView:
             self._place_free(x, y)
             if progress >= 1.0:
                 self._snap_to = None
-                self._apply_zone(self._zone_name)
+                zone_name = self._snap_zone
+                self._snap_zone = None
+                if zone_name is None:
+                    self._place_free(target.x, target.y)
+                    self._current_rect = target
+                else:
+                    self._apply_zone(zone_name)
         self.area.queue_draw()
 
     def show_bubble(self, text: str, ms_per_char: int) -> None:
@@ -262,9 +320,18 @@ class AvatarView:
         self._click_through = enabled
         self._update_input_region()
 
-    def snap_to(self, zone_name: str) -> None:
-        self._snap_to = None
-        self._apply_zone(zone_name)
+    def snap_to(self, target: str | Rect) -> None:
+        self._snap_from = self._current_rect
+        if isinstance(target, Rect):
+            self._snap_to = target
+            self._snap_zone = None
+            self._zone_name = "flotante"
+            return
+        self._snap_to = zone_rect(
+            self.monitor, self._resolve_zone(target), _SIZE
+        )
+        self._snap_zone = target
+        self._zone_name = target
 
     def show_all(self) -> None:
         self.window.show_all()
