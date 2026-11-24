@@ -1,5 +1,6 @@
 [provider]
 command = ["fake-cli"]
+output_format = "text"
 
 [apps]
 firefox = "firefox"
@@ -9,4 +10,7 @@ anchor = "top"
 margin = 32
 
 [voice]
+enabled = false
+
+[music]
 enabled = false

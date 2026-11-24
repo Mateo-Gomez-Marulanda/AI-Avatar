@@ -39,7 +39,10 @@ def build(config_path: str | Path) -> tuple[Mediator, AvatarView, InputPanel, An
     voice = VoiceService(config.voice, runner)
     launcher = AppLauncher(config.apps, lambda argv: subprocess.Popen(argv))
     engine = AnimationEngine(
-        (config.idle_state,), config.drag_snap_ms, config.bubble_ms_per_char
+        config.idle_states,
+        config.drag_snap_ms,
+        config.bubble_ms_per_char,
+        config.idle_switch_s,
     )
     view = AvatarView(config, monitor)
 

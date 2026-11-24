@@ -1,24 +1,37 @@
 # Copia este archivo como config.toml y ajusta los comandos a tu equipo.
 
-[provider]
-# CLI que responde. Por defecto OpenCode; otros ejemplos: ["claude", "-p"], ["codex", "exec"]
-command = ["opencode", "run"]
-# oneshot envía el historial en cada llamada, sin depender de ids de sesión.
-session_mode = "oneshot"
-# Solo se usan en resume si el CLI admite reanudar por id.
-session_flag = ""
-session_id_regex = ""
-timeout_s = 60.0
-# El modelo NO recibe información de animación: solo conversación y estas dos órdenes:
-#   ESTADO=sentado|parado|musica   ABRIR=<alias de [apps]>
-# Cualquier otra línea ZONA=... o ESTADO=hablando se ignora.
-prompt_template = "{history}\n{text}"
+idle_states = ["sentado", "parado"]
+idle_switch_s = 20.0
+bubble_ms_per_char = 45
+drag_snap_ms = 250
 
-# El modelo puede pedir ABRIR=alias solo con alias de esta lista.
+[provider]
+command = ["opencode", "run", "--format", "json", "--agent", "alive", "--archived"]
+output_format = "json"
+workdir = "~"
+timeout_s = 90.0
+
 [apps]
 firefox = "firefox --new-window"
 code = "code"
 terminal = "konsole"
+
+[commands]
+enabled = true
+timeout_s = 30.0
+max_output_bytes = 8192
+max_per_turn = 3
+approval_timeout_s = 120.0
+working_dir = "~"
+share_output_with_model = true
+
+[conversation]
+max_chars = 6000
+
+[music]
+enabled = true
+players = ["spotify"]
+poll_s = 5.0
 
 # El avatar se ancla justo debajo del panel superior (margin = altura del panel).
 [zones.barra]
