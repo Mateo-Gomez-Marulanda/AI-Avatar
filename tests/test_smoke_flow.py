@@ -1,5 +1,5 @@
-import json
 import sys
+from dataclasses import replace
 
 from alive.application.commands import ShellCommandExecutor
 from alive.infrastructure.providers.cli import CliProvider, SubprocessRunner
@@ -35,15 +35,19 @@ print(json.dumps({{"type": "text", "sessionID": "ses_x",
     view, voice, launcher = FakeView(), FakeVoice(), FakeLauncher()
     approver = FakeApprover(True)
     executor = ShellCommandExecutor(timeout_s=5.0, workdir=str(tmp_path))
+    base = make_config()
     mediator = make_mediator(
         ai=ai, view=view, voice=voice, launcher=launcher, approver=approver,
         executor=executor, background=InlineBackground(),
-        config=make_config(commands=make_config().commands.__class__(working_dir=str(tmp_path))),
+        config=replace(base, commands=replace(base.commands, working_dir=str(tmp_path))),
     )
     mediator.submit_text("ejecuta printf hola")
 
     assert approver.requests[0].command == "printf hola"
     assert "printf hola" in mediator.conversation.render()
     assert "hola" in mediator.conversation.render()
+    tool_msg = mediator.conversation.messages[-2]
+    assert tool_msg.role == "tool"
+    assert tool_msg.text == "Resultado del comando `printf hola` (código 0):\nhola"
     assert view.bubbles[-1] == "Listo: hola"
     assert mediator.busy is False
