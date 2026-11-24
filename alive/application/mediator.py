@@ -239,12 +239,12 @@ class Mediator:
         if self._command_count >= self.config.commands.max_per_turn:
             self._display("He ejecutado varias acciones; dime cómo seguir")
         elif self.config.commands.share_output_with_model:
-            self.view.show_bubble(resumen, self.config.bubble_ms_per_char)
             self.engine.transition_to("pensando", self.clock())
             self._status(True, "Pensando…")
             self.background.run(self._call_model, self._on_model)
         else:
-            self._display(resumen)
+            self.engine.idle(self.clock())
+            self._finish_turn(resumen)
 
     def _display(self, text: str) -> None:
         self.view.show_bubble(text, self.config.bubble_ms_per_char)

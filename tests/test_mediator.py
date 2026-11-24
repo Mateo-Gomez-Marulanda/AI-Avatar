@@ -104,6 +104,37 @@ def test_unshared_output_never_reaches_later_prompts():
     assert "SECRETO" not in ai.prompts[1]
 
 
+def test_command_summary_goes_to_panel_not_bubble():
+    statuses = []
+    ai = FakeAi([command()])
+    executor = FakeExecutor(CommandResult(0, "hola", "", False, 0.1))
+    m = make_mediator(ai=ai, executor=executor,
+                      on_status=lambda b, t: statuses.append((b, t)))
+    m.submit_text("ejecuta")
+    assert all("Comando ejecutado" not in b for b in m.view.bubbles)
+    assert (False, "Comando ejecutado (código 0)") in statuses
+    assert m.busy is False
+
+
+def test_shared_command_summary_is_not_shown_in_bubble():
+    cfg = make_config(commands=CommandConfig(share_output_with_model=True))
+    ai = FakeAi([command(), "Listo"])
+    m = make_mediator(ai=ai, config=cfg, executor=FakeExecutor())
+    m.submit_text("ejecuta")
+    assert all("Comando ejecutado" not in b for b in m.view.bubbles)
+    assert m.view.bubbles[-1] == "Listo"
+
+
+def test_timed_out_command_summary_does_not_use_bubble():
+    statuses = []
+    result = CommandResult(0, "", "", True, 0.1)
+    m = make_mediator(ai=FakeAi([command()]), executor=FakeExecutor(result),
+                      on_status=lambda b, t: statuses.append((b, t)))
+    m.submit_text("ejecuta")
+    assert all("tiempo" not in b for b in m.view.bubbles)
+    assert (False, "El comando agotó el tiempo") in statuses
+
+
 def test_command_limit_stops_the_turn():
     ai = FakeAi([command(), command()])
     cfg = make_config(commands=CommandConfig(max_per_turn=2, share_output_with_model=True))
