@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 import subprocess
 from collections.abc import Callable
+from pathlib import Path
 
 from alive.domain.config import ProviderConfig
 from alive.domain.contracts import AiReply, CommandRunner, ProviderError
@@ -13,7 +14,20 @@ Runner = CommandRunner | Callable[[list[str], bytes, float], str]
 
 _ANSI_RE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
 # `opencode run` imprime una cabecera de estado: "> <agente> · <modelo>".
-_STATUS_HEADER_RE = re.compile(r"^> .+ · .+$")
+# El patrón es estricto para no confundirlo con una cita markdown ordinaria.
+_STATUS_HEADER_RE = re.compile(r"^> \S+ · \S+$")
+
+
+def _drop_opencode_header(text: str) -> str:
+    """Quita solo la cabecera de estado de `opencode run`, nunca una cita."""
+    lines = text.splitlines()
+    for index, line in enumerate(lines):
+        if not line.strip():
+            continue
+        if _STATUS_HEADER_RE.match(line):
+            del lines[index]
+        break
+    return "\n".join(lines)
 
 
 class CliProvider:
@@ -52,9 +66,6 @@ class CliProvider:
 
         out = self._run(argv, self._prompt(prompt, history), self.config.timeout_s)
         clean = _ANSI_RE.sub("", out)
-        clean = "\n".join(
-            line for line in clean.splitlines() if not _STATUS_HEADER_RE.match(line)
-        )
 
         if self._id_re is not None:
             kept = []
@@ -68,6 +79,9 @@ class CliProvider:
                     continue
                 kept.append(line)
             clean = "\n".join(kept).strip()
+
+        if argv and Path(argv[0]).name == "opencode":
+            clean = _drop_opencode_header(clean)
 
         return AiReply(text=clean.strip())
 

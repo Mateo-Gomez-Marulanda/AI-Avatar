@@ -61,8 +61,11 @@ historial viaja en el prompt en cada llamada y no hay que parsear ids.
 ## Verificación
 
 - Test nuevo en rojo→verde y suite completa en verde.
-- Repetir `/tmp/opencode/diag_posicion.py`: durante el arrastre y el snap debe
-  mostrar TOP y LEFT anclados con los márgenes esperados, sin márgenes en
-  bordes desanclados.
+- Repetir el diagnóstico local de posiciones (fuera del repo): durante el
+  arrastre y el snap debe mostrar TOP y LEFT anclados con los márgenes
+  esperados. Los márgenes que queden en bordes desanclados son inofensivos:
+  layer-shell los ignora.
+- Comprobar con `opencode run` real que la cabecera `> agente · modelo` no
+  aparece en el globo y que las citas markdown de las respuestas se conservan.
 - Smoke de extremo a extremo con el CLI falso para comprobar que el cambio de
   proveedor no rompe el flujo de respuestas.

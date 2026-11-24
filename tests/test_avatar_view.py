@@ -8,7 +8,7 @@ gi.require_version("Gdk", "3.0")
 gi.require_version("GtkLayerShell", "0.1")
 from gi.repository import Gdk, GtkLayerShell
 
-from alive.domain.config import load_config
+from alive.domain.config import Zone, load_config
 from alive.domain.geometry import Rect
 from alive.ui import avatar_view as av
 
@@ -90,6 +90,17 @@ def test_drag_and_snap_use_anchored_margins(monkeypatch):
     assert GtkLayerShell.get_anchor(view.window, E.LEFT)
     assert GtkLayerShell.get_margin(view.window, E.TOP) == 132
     assert GtkLayerShell.get_margin(view.window, E.LEFT) == 633
+
+
+def test_right_zone_keeps_right_edge_anchored():
+    view, _ = make_view()
+    view.config.zones["derecha"] = Zone("right", margin=12)
+    E = GtkLayerShell.Edge
+
+    view._apply_zone("derecha")
+    assert GtkLayerShell.get_anchor(view.window, E.RIGHT)
+    assert not GtkLayerShell.get_anchor(view.window, E.LEFT)
+    assert GtkLayerShell.get_margin(view.window, E.RIGHT) == 12
 
 
 def test_click_during_snap_keeps_the_animation(monkeypatch):

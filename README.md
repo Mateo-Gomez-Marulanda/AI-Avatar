@@ -108,7 +108,7 @@ bloquear la interfaz. La síntesis de voz (`speak`) se ejecuta en el hilo GTK.
 | `alive/main.py` | Raíz de composición: carga la configuración, obtiene el monitor, construye e inyecta las dependencias, conecta callbacks, registra el tick y arranca `Gtk.main()`. Es el único lugar que importa todas las capas y GTK para el bootstrap. |
 | `alive/providers/` | Directorio vacío heredado de la estructura anterior. Los proveedores reales viven en `alive/infrastructure/providers/`. |
 | `tests/` | Suite plana de pytest: un archivo por módulo, más `test_structure.py` (comprueba que los imports de cada capa siguen disponibles) y `fixtures/fake_config.toml` (config aislada, sin rutas de `/tmp`). |
-| `docs/` | `estructura-proyecto.md` (diseño por capas), `interaccion-y-salida.md` (especificación de clic, salida y voz) y `superpowers/plans/` (planes de ejecución: la carpeta está ignorada para archivos nuevos, aunque algunos planes antiguos siguen versionados). |
+| `docs/` | `estructura-proyecto.md` (diseño por capas), `interaccion-y-salida.md` (clic, salida y voz), `movimiento-y-proveedor.md` (anclajes y OpenCode) y `superpowers/plans/` (planes de ejecución: la carpeta está ignorada para archivos nuevos, aunque algunos planes antiguos siguen versionados). |
 | Raíz del repo | `config.toml.example` (plantilla comentada), `plan-de-desarrollo.md` (diseño original y fuente de verdad) y este README. |
 | Ignorados | `.venv/`, `__pycache__/`, `.pytest_cache/`, `.superpowers/` y `superpowers/` son entornos, cachés y scratch de desarrollo; no forman parte del código. |
 
@@ -119,8 +119,9 @@ módulos de cada capa para detectar que la reorganización sigue intacta.
 
 ## Configuración
 
-- **`[provider]`**: `command` es la única pieza ligada al proveedor. El ejemplo
-  usa OpenCode: `command = ["opencode", "run"]` con
+- **`[provider]`**: `command` es la única pieza de configuración ligada al
+  proveedor (el código, además, descarta la cabecera de estado que imprime
+  `opencode run`). El ejemplo usa OpenCode: `command = ["opencode", "run"]` con
   `session_mode = "oneshot"`, que envía el historial en cada llamada sin depender
   de ids de sesión. Otras opciones:
 
