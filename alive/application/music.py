@@ -10,8 +10,12 @@ class MusicMonitor:
         self.source = source
         self.engine = engine
         self.clock = clock
+        self._last_active: bool | None = None
 
     def poll(self) -> bool:
         active = self.source.is_playing()
-        self.engine.set_music(active, self.clock())
+        if active != self._last_active:
+            # set_music reinicia el temporizador de idle: solo avisar en cambios.
+            self._last_active = active
+            self.engine.set_music(active, self.clock())
         return active

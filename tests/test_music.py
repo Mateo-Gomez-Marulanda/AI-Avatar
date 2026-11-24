@@ -48,3 +48,13 @@ def test_monitor_forwards_state_to_engine():
     monitor = MusicMonitor(Source(), engine, lambda: 7.0)
     assert monitor.poll() is True
     assert engine.calls == [(True, 7.0)]
+
+
+def test_monitor_does_not_forward_unchanged_state():
+    class Source:
+        def is_playing(self): return True
+    engine = Engine()
+    monitor = MusicMonitor(Source(), engine, lambda: 7.0)
+    assert monitor.poll() is True
+    assert monitor.poll() is True
+    assert engine.calls == [(True, 7.0)]

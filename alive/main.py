@@ -17,12 +17,17 @@ from gi.repository import Gdk, GLib, Gtk  # noqa: E402
 
 from alive.application.apps import AppLauncher  # noqa: E402
 from alive.application.audio import VoiceService, missing_voice_commands  # noqa: E402
+from alive.application.commands import ShellCommandExecutor  # noqa: E402
 from alive.application.mediator import Mediator  # noqa: E402
+from alive.application.music import MusicMonitor  # noqa: E402
 from alive.domain.animation import AnimationEngine  # noqa: E402
 from alive.domain.config import load_config  # noqa: E402
 from alive.domain.geometry import Rect  # noqa: E402
 from alive.infrastructure.background import GtkBackgroundRunner  # noqa: E402
+from alive.infrastructure.logging import configure_logging  # noqa: E402
+from alive.infrastructure.mpris import PlayerctlMusicSource  # noqa: E402
 from alive.infrastructure.providers.cli import CliProvider, SubprocessRunner  # noqa: E402
+from alive.ui.approval_dialog import GtkApprover  # noqa: E402
 from alive.ui.avatar_view import AvatarView  # noqa: E402
 from alive.ui.input_panel import InputPanel  # noqa: E402
 
@@ -71,6 +76,16 @@ def build(config_path: str | Path) -> tuple[Mediator, AvatarView, InputPanel, An
             "Voz no disponible: faltan herramientas", config.bubble_ms_per_char
         )
 
+    executor = ShellCommandExecutor(
+        config.commands.timeout_s,
+        max_output_bytes=config.commands.max_output_bytes,
+        workdir=config.commands.working_dir,
+    )
+    approver = GtkApprover(
+        timeout_s=config.commands.approval_timeout_s,
+        share_output=config.commands.share_output_with_model,
+        parent=view.window,
+    )
     mediator = Mediator(
         engine=engine,
         view=view,
@@ -80,12 +95,23 @@ def build(config_path: str | Path) -> tuple[Mediator, AvatarView, InputPanel, An
         config=config,
         clock=time.monotonic,
         background=GtkBackgroundRunner(),
+        approver=approver,
+        executor=executor,
+        on_status=panel.set_busy,
     )
     view.set_callbacks(
         mediator.on_drag_start,
         mediator.on_drag_end,
         lambda: (panel.show(), panel.present()),
     )
+    if config.music.enabled:
+        source = PlayerctlMusicSource(config.music.players)
+        monitor = MusicMonitor(source, engine, time.monotonic)
+        # MusicMonitor solo reenvía cambios: sondear no reinicia el idle del motor.
+        GLib.timeout_add(
+            max(250, int(config.music.poll_s * 1000)),
+            lambda: (monitor.poll(), True)[1],
+        )
     return mediator, view, panel, engine
 
 
@@ -93,6 +119,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Avatar 2D para Linux/KDE")
     parser.add_argument("--config", default="config.toml", help="ruta al config.toml")
     args = parser.parse_args()
+    configure_logging()
 
     _, view, _, engine = build(args.config)
     view.show_all()

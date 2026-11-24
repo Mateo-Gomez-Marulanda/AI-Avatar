@@ -6,6 +6,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Protocol, TypeVar, runtime_checkable
 
+from alive.domain.actions import CommandRequest, CommandResult
 from alive.domain.animation import Frame
 
 T = TypeVar("T")
@@ -29,6 +30,23 @@ class CommandRunner(Protocol):
 @runtime_checkable
 class AiProvider(Protocol):
     def ask(self, prompt: str) -> AiReply: ...
+
+
+@runtime_checkable
+class CommandExecutor(Protocol):
+    def run(self, command: str) -> CommandResult: ...
+
+
+@runtime_checkable
+class Approver(Protocol):
+    def request(
+        self, request: CommandRequest, on_decision: Callable[[bool], None]
+    ) -> None: ...
+
+
+@runtime_checkable
+class MusicSource(Protocol):
+    def is_playing(self) -> bool: ...
 
 
 @runtime_checkable
