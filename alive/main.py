@@ -27,6 +27,8 @@ from alive.infrastructure.background import GtkBackgroundRunner  # noqa: E402
 from alive.infrastructure.logging import configure_logging  # noqa: E402
 from alive.infrastructure.mpris import PlayerctlMusicSource  # noqa: E402
 from alive.infrastructure.providers.cli import CliProvider, SubprocessRunner  # noqa: E402
+from alive.infrastructure.timer import GtkLevelTimer  # noqa: E402
+from alive.infrastructure.voice_runner import BinarySubprocessRunner  # noqa: E402
 from alive.ui.approval_dialog import GtkApprover  # noqa: E402
 from alive.ui.avatar_view import AvatarView  # noqa: E402
 from alive.ui.input_panel import InputPanel  # noqa: E402
@@ -38,10 +40,12 @@ def build(config_path: str | Path) -> tuple[Mediator, AvatarView, InputPanel, An
     monitor = Rect(geometry.x, geometry.y, geometry.width, geometry.height)
 
     missing_voice = missing_voice_commands(config.voice)
-    runner = SubprocessRunner()
+    voice_available = config.voice.enabled and not missing_voice
     ai_runner = SubprocessRunner(os.path.expanduser(config.provider.workdir) or None)
     ai = CliProvider(config.provider, ai_runner)
-    voice = VoiceService(config.voice, runner)
+    # El CLI de IA es texto; la voz necesita PCM binario sin re-codificación.
+    voice = VoiceService(config.voice, BinarySubprocessRunner())
+    timer = GtkLevelTimer()
     launcher = AppLauncher(config.apps, lambda argv: subprocess.Popen(argv))
     engine = AnimationEngine(
         config.idle_states,
@@ -68,7 +72,7 @@ def build(config_path: str | Path) -> tuple[Mediator, AvatarView, InputPanel, An
         on_ptt_hold,
         on_ptt_start=on_ptt_start,
         on_toggle_quiet=on_toggle_quiet,
-        voice_enabled=config.voice.enabled and not missing_voice,
+        voice_enabled=voice_available,
         on_quit=Gtk.main_quit,
     )
     if missing_voice:
@@ -99,12 +103,15 @@ def build(config_path: str | Path) -> tuple[Mediator, AvatarView, InputPanel, An
         background=background,
         approver=approver,
         executor=executor,
+        timer=timer,
         on_status=panel.set_busy,
     )
     view.set_callbacks(
         mediator.on_drag_start,
         mediator.on_drag_end,
         lambda: (panel.show(), panel.present()),
+        on_ptt_start=mediator.ptt_start if voice_available else lambda: None,
+        on_ptt_end=mediator.ptt_end if voice_available else lambda: None,
     )
     if config.music.enabled:
         source = PlayerctlMusicSource(config.music.players)

@@ -81,11 +81,16 @@ Para usar otro CLI en modo texto, cambia `provider.command` y pon
 - **Clic sobre el avatar** abre el panel de texto. Se tolera un temblor de hasta
   10 px entre pulsar y soltar; un movimiento mayor se considera arrastre.
 - **Panel**: escribe y pulsa Enter o «Enviar». «Micrófono» funciona como PTT:
-  mantén pulsado mientras hablas y suelta para transcribir. «No molestar» pone
-  el avatar en ese estado y deja pasar los clics; vuelve a pulsarlo para
-  restaurarlo. «Salir» cierra el programa. El panel permanece visible durante el
-  turno y muestra «Pensando…», «Esperando permiso…» o «Ejecutando…»; entrada,
-  enviar y micrófono quedan deshabilitados.
+  mantén pulsado mientras hablas y suelta para transcribir. «No molestar» anima
+  el avatar hasta la esquina inferior derecha y deja pasar los clics; vuelve a
+  pulsarlo para devolverlo a su posición exacta. «Salir» cierra el programa. El
+  panel permanece visible durante el turno y muestra «Pensando…», «Esperando
+  permiso…», «Ejecutando…» o «Hablando…»; entrada, enviar y micrófono quedan
+  deshabilitados.
+- **PTT en el avatar**: mantén pulsado el **botón derecho** sobre el avatar y
+  suelta para transcribir. El botón izquierdo sigue abriendo el panel con un clic
+  y arrastrando con movimiento; el botón derecho no arrastra. Solo está activo si
+  la voz está disponible.
 - **«Abre firefox»**: el modelo propone una app de `[apps]` y se abre directo, sin
   diálogo de aprobación. Si el alias no existe, no se abre nada y se avisa.
 - **«Ejecuta …»**: el modelo propone un comando y aparece el diálogo con el
@@ -98,10 +103,13 @@ Para usar otro CLI en modo texto, cambia `provider.command` y pon
   hasta la zona cuyo centro queda más cerca. Empezar otro arrastre cancela el
   snap anterior; un clic no lo cancela.
 - **`Ctrl+Q`** cierra el programa cuando el panel tiene el foco.
-- **Voz**: la cadena es captura → STT → IA → TTS → PCM → boca. Si falta algún
-  comando se muestra «Voz no disponible: faltan herramientas» y el micrófono
-  desaparece. Si la transcripción falla aparece «No pude escuchar»; si falla el
-  TTS, la respuesta escrita sigue visible.
+- **Voz**: la cadena es captura → STT → IA → TTS → PCM → boca. La síntesis y la
+  reproducción van en hilos de fondo; la boca se mueve con la envolvente del PCM
+  y el turno sigue ocupado («Hablando…») hasta que termina el audio. Si falta
+  algún comando se muestra «Voz no disponible: faltan herramientas» y el
+  micrófono desaparece. Si la transcripción falla aparece «No pude escuchar»; si
+  falla el TTS, la respuesta escrita sigue visible y el error queda en el registro
+  y en el estado del panel.
 
 ## Cómo fluye la información
 
@@ -145,8 +153,9 @@ los alias contra `[apps]`, pide aprobación para comandos y devuelve el resultad
 modelo para que lo explique. Un bloque malformado o ambiguo no ejecuta nada.
 `AnimationEngine.tick()` produce un `Frame(state, mouth, snap_progress)`; `main.py`
 lo llama cada 33 ms con `GLib.timeout_add`. Las llamadas al CLI y la ejecución de
-comandos corren en hilos de fondo (`GtkBackgroundRunner`) y vuelven al hilo GTK;
-la voz se sintetiza en el hilo GTK.
+comandos y la voz corren en hilos de fondo (`GtkBackgroundRunner`) y vuelven al
+hilo GTK; los niveles de la boca se entregan con `GtkLevelTimer`. El PCM de voz
+pasa por `BinarySubprocessRunner`, sin decodificarlo a texto.
 
 ## Estructura de carpetas
 
@@ -154,7 +163,7 @@ la voz se sintetiza en el hilo GTK.
 | --- | --- |
 | `alive/domain/` | Reglas puras del negocio: `config.py` (TOML y validación), `actions.py` (contrato de acciones, antes `orders.py`), `conversation.py` (memoria), `animation.py` (estados, boca y snap), `geometry.py` (zonas), `contracts.py` (tipos y protocolos). Python puro: ni GTK ni `subprocess`. |
 | `alive/application/` | Casos de uso: `mediator.py` (turnos, acciones y errores visibles), `prompt.py` (prompt de sistema e historial), `commands.py` (ejecución con `sh -c`), `music.py` (monitor de MPRIS), `audio.py` (captura/STT/TTS), `apps.py` (whitelist). No contiene widgets. |
-| `alive/infrastructure/` | Adaptadores al mundo exterior: `providers/cli.py` (CLI configurable), `providers/opencode.py` (NDJSON y errores), `mpris.py` (`playerctl`), `background.py` (hilos y GLib), `logging.py` (registro rotatorio 0600). |
+| `alive/infrastructure/` | Adaptadores al mundo exterior: `providers/cli.py` (CLI configurable), `providers/opencode.py` (NDJSON y errores), `mpris.py` (`playerctl`), `background.py` (hilos y GLib), `timer.py` (niveles en GTK), `voice_runner.py` (PCM binario), `logging.py` (registro rotatorio 0600). |
 | `alive/ui/` | Todo lo visible: `avatar_view.py` (avatar, eventos, globo y snap), `input_panel.py` (texto, PTT y estado ocupado), `approval_dialog.py` (comando exacto y decisión). |
 | `alive/main.py` | Raíz de composición: carga la configuración, construye e inyecta dependencias, cablea callbacks y estado, registra el tick y arranca `Gtk.main()`. Es el único lugar que importa todas las capas y GTK. |
 | `tests/` | Suite plana de pytest: un archivo por módulo, `support.py` (fakes), `test_structure.py` (imports por capa), `test_smoke_flow.py` (smoke determinista con CLI falso real) y `fixtures/fake_config.toml`. |
@@ -171,7 +180,8 @@ cada capa para detectar que la reorganización sigue intacta.
 
 - **Globales**: `idle_states` (lista de estados para el idle, p. ej.
   `["sentado", "parado"]`) e `idle_switch_s` (20 s) sustituyen al antiguo
-  `idle_state` singular. También `bubble_ms_per_char` (45) y `drag_snap_ms` (250).
+  `idle_state` singular. También `bubble_ms_per_char` (45), `drag_snap_ms` (250) y
+  `quiet_zone` (`"no_molestar"`): zona usada al activar «No molestar».
 - **`[provider]`**: `command` es el CLI con el que se habla; el ejemplo usa
   `["opencode", "run", "--format", "json", "--agent", "alive", "--archived"]`.
   `output_format = "json"` parsea el NDJSON de OpenCode; usa `"text"` para otros
@@ -191,9 +201,10 @@ cada capa para detectar que la reorganización sigue intacta.
   de sistema se envía siempre.
 - **`[music]`**: `enabled`, `players` (nombres de `playerctl`; `[]` = cualquiera) y
   `poll_s`. Solo el estado `Playing` activa `musica`. El modelo no puede pedirlo.
-- **`[zones.nombre]`**: `anchor` (`top`, `left`, `right`, `bottom`, `floating`),
-  `margin` y, solo para `floating`, `x`/`y`. `margin` del anclaje superior es la
-  altura del panel (p. ej. 32 px).
+- **`[zones.nombre]`**: `anchor` (`top`, `left`, `right`, `bottom`,
+  `bottom-right`, `floating`), `margin` y, solo para `floating`, `x`/`y`.
+  `margin` del anclaje superior es la altura del panel (p. ej. 32 px). El ejemplo
+  define `[zones.no_molestar]` con `bottom-right` y `margin = 12`.
 - **`[voice]`**: `enabled`, `capture_command` (con `{duration}`), `stt_command`,
   `tts_command`, `play_command`, `sample_rate`, `frame_samples` y `timeout_s`. Las
   listas vacías desactivan cada paso; `sample_rate` y `frame_samples` deben

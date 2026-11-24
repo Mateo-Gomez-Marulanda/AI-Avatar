@@ -300,3 +300,24 @@ def test_quiet_off_during_turn_restores_in_flight_state():
     m.toggle_no_molestar()
     m.toggle_no_molestar()
     assert m.engine.state == "pensando" and m.busy is True
+
+
+def test_mediator_requires_an_injected_timer():
+    import pytest
+    from alive.application.mediator import Mediator
+    from alive.domain.animation import AnimationEngine
+    from support import InlineBackground
+
+    with pytest.raises(TypeError, match="timer"):
+        Mediator(
+            engine=AnimationEngine(),
+            view=FakeView(),
+            ai=FakeAi([]),
+            voice=FakeVoice(),
+            launcher=FakeLauncher(),
+            config=make_config(),
+            clock=lambda: 0.0,
+            background=InlineBackground(),
+            approver=FakeApprover(),
+            executor=FakeExecutor(),
+        )

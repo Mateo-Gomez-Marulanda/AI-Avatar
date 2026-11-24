@@ -67,12 +67,10 @@ class VoiceService:
         config,
         runner: Runner,
         clock: Callable[[], float] = time.monotonic,
-        sleep: Callable[[float], None] = time.sleep,
     ) -> None:
         self.config = config
         self.runner = runner
         self.clock = clock
-        self.sleep = sleep
         self._generation = 0
         self._pending_levels: list[object] = []
 
@@ -184,18 +182,3 @@ class VoiceService:
             background.run(lambda: self.play(audio.pcm), on_played)
 
         background.run(lambda: self._synthesize(text), on_audio)
-
-    def speak(
-        self,
-        text: str,
-        on_level: Callable[[float, float], None],
-    ) -> None:
-        """Compatibilidad temporal hasta que el mediador use ``speak_async``."""
-        if not self._voice_ready():
-            return
-        pcm = self.synthesize(text)
-        _run(self.runner, self.config.play_command, pcm, self.config.timeout_s)
-        step = self.config.frame_samples / self.config.sample_rate
-        for level in rms_envelope(pcm, frame_samples=self.config.frame_samples):
-            on_level(level, self.clock())
-            self.sleep(step)

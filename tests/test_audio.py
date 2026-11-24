@@ -12,31 +12,24 @@ def test_record_replaces_duration_placeholder():
     calls = []
     cfg = type("C", (), {"capture_command": ["ffmpeg", "-t", "{duration}", "-i", "x"],
                          "sample_rate": 16000, "frame_samples": 1024})()
-    v = VoiceService(cfg, lambda argv, stdin, timeout_s: (calls.append(argv), b"pcm")[1], sleep=lambda s: None)
+    v = VoiceService(cfg, lambda argv, stdin, timeout_s: (calls.append(argv), b"pcm")[1])
     assert v.record(2.5) == b"pcm" and calls[0][2] == "2.5"
 
-def test_speak_feeds_levels_in_order():
-    levels, sleeps = [], []
-    cfg = type("C", (), {"tts_command": ["tts"], "play_command": ["paplay"],
-                         "sample_rate": 16000, "frame_samples": 1024, "timeout_s": 5.0})()
-    runner = lambda argv, stdin, timeout_s: b"\x00" * 4096 if argv[0] == "tts" else b""
-    v = VoiceService(cfg, runner, sleep=lambda s: sleeps.append(s))
-    v.speak("hola", lambda level, t: levels.append(level))
-    assert levels == [0.0, 0.0]
-    assert sleeps == [0.064, 0.064]
 
-
-def test_empty_tts_is_a_noop():
-    calls = []
-    cfg = type("C", (), {"tts_command": [], "play_command": [], "sample_rate": 16000,
-                         "frame_samples": 1024, "timeout_s": 5.0})()
+def test_empty_tts_completes_without_background_jobs():
+    calls, ready, done = [], [], []
+    cfg = type("C", (), {"enabled": True, "tts_command": [], "play_command": [],
+                         "sample_rate": 16000, "frame_samples": 1024,
+                         "timeout_s": 5.0})()
     def runner(argv, stdin, timeout_s):
         calls.append(argv)
         return b""
-    v = VoiceService(cfg, runner, sleep=lambda s: None)
-    levels = []
-    v.speak("hola", lambda level, t: levels.append(level))
-    assert calls == [] and levels == []
+    bg, timer = FakeBackground(), FakeTimer()
+    v = VoiceService(cfg, runner)
+    v.speak_async("hola", on_level=lambda *a: None, on_ready=ready.append,
+                  on_done=done.append, background=bg, timer=timer)
+    assert calls == [] and ready == [0.0] and done == [None]
+    assert bg.jobs == [] and timer.pending == []
 
 
 def test_empty_capture_and_stt_return_empty():
@@ -51,7 +44,12 @@ def test_disabled_voice_is_silent_even_with_commands():
                          "tts_command": ["tts"], "play_command": ["play"], "sample_rate": 16000,
                          "frame_samples": 1024, "timeout_s": 5.0})()
     v = VoiceService(cfg, lambda *a: (_ for _ in ()).throw(AssertionError("no debe ejecutar")))
-    v.record(1.0); v.transcribe(b"pcm"); v.speak("hola", lambda *a: None)
+    done = []
+    v.record(1.0)
+    v.transcribe(b"pcm")
+    v.speak_async("hola", on_level=lambda *a: None, on_ready=lambda d: None,
+                  on_done=done.append, background=FakeBackground(), timer=FakeTimer())
+    assert done == [None]
 
 import alive.application.audio as audio
 
@@ -67,6 +65,10 @@ def test_disabled_voice_has_no_missing_commands():
                          "stt_command": ["stt"], "tts_command": ["tts"],
                          "play_command": ["play"]})()
     assert audio.missing_voice_commands(cfg) == []
+
+
+def test_voice_service_has_no_blocking_speak():
+    assert not hasattr(VoiceService, "speak")
 
 
 def test_binary_runner_preserves_raw_pcm_bytes():

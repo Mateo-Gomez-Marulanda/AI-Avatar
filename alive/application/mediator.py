@@ -54,16 +54,6 @@ class _Transcript:
     error: str | None = None
 
 
-class _SilentTimer:
-    """Compatibilidad temporal hasta que `main` inyecte el temporizador GTK."""
-
-    def after(self, delay_s: float, callback) -> object:
-        return None
-
-    def cancel(self, handle: object) -> None:
-        return None
-
-
 class Mediator:
     def __init__(
         self,
@@ -77,7 +67,7 @@ class Mediator:
         clock: Callable[[], float],
         background: BackgroundLike,
         approver: Approver,
-        timer: LevelTimer | None = None,
+        timer: LevelTimer,
         executor: CommandExecutor,
         on_status: Callable[[bool, str], None] | None = None,
     ) -> None:
@@ -91,7 +81,7 @@ class Mediator:
         self.background = background
         self.approver = approver
         self.executor = executor
-        self.timer = timer if timer is not None else _SilentTimer()
+        self.timer = timer
         self.on_status = on_status
         self.conversation = Conversation(config.conversation.max_chars)
         self.system_prompt = build_system_prompt(config.apps, config.commands.enabled)
