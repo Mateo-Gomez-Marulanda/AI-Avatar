@@ -32,6 +32,20 @@ class BinaryCommandRunner(Protocol):
     def run(self, argv: list[str], stdin: bytes, timeout_s: float) -> bytes: ...
 
 
+@dataclass(frozen=True)
+class SpeechAudio:
+    pcm: bytes = b""
+    duration_s: float = 0.0
+    error: str | None = None
+
+
+@runtime_checkable
+class LevelTimer(Protocol):
+    def after(self, delay_s: float, callback: Callable[[], None]) -> object: ...
+
+    def cancel(self, handle: object) -> None: ...
+
+
 @runtime_checkable
 class AiProvider(Protocol):
     def ask(self, prompt: str) -> AiReply: ...

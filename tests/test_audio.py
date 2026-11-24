@@ -1,5 +1,6 @@
 import struct
 from alive.application.audio import VoiceService, rms_envelope
+from support import FakeBackground, FakeTimer
 
 def test_rms_envelope_silence_and_tone():
     assert rms_envelope(b"\x00" * 4096, frame_samples=1024) == [0.0, 0.0]
@@ -11,7 +12,7 @@ def test_record_replaces_duration_placeholder():
     calls = []
     cfg = type("C", (), {"capture_command": ["ffmpeg", "-t", "{duration}", "-i", "x"],
                          "sample_rate": 16000, "frame_samples": 1024})()
-    v = VoiceService(cfg, lambda argv, stdin, timeout_s: (calls.append(argv), b"pcm")[1], lambda s: None)
+    v = VoiceService(cfg, lambda argv, stdin, timeout_s: (calls.append(argv), b"pcm")[1], sleep=lambda s: None)
     assert v.record(2.5) == b"pcm" and calls[0][2] == "2.5"
 
 def test_speak_feeds_levels_in_order():
@@ -19,7 +20,7 @@ def test_speak_feeds_levels_in_order():
     cfg = type("C", (), {"tts_command": ["tts"], "play_command": ["paplay"],
                          "sample_rate": 16000, "frame_samples": 1024, "timeout_s": 5.0})()
     runner = lambda argv, stdin, timeout_s: b"\x00" * 4096 if argv[0] == "tts" else b""
-    v = VoiceService(cfg, runner, lambda s: sleeps.append(s))
+    v = VoiceService(cfg, runner, sleep=lambda s: sleeps.append(s))
     v.speak("hola", lambda level, t: levels.append(level))
     assert levels == [0.0, 0.0]
     assert sleeps == [0.064, 0.064]
@@ -32,7 +33,7 @@ def test_empty_tts_is_a_noop():
     def runner(argv, stdin, timeout_s):
         calls.append(argv)
         return b""
-    v = VoiceService(cfg, runner, lambda s: None)
+    v = VoiceService(cfg, runner, sleep=lambda s: None)
     levels = []
     v.speak("hola", lambda level, t: levels.append(level))
     assert calls == [] and levels == []
@@ -82,3 +83,60 @@ def test_synthesize_keeps_raw_pcm_from_runner():
                          "timeout_s": 5.0})()
     v = VoiceService(cfg, lambda argv, stdin, t: pcm)
     assert v.synthesize("hola") == pcm
+
+
+def test_speak_async_defers_synthesis_and_play_to_background():
+    pcm = bytes([0, 255, 128, 10]) * 1024
+    cfg = type("C", (), {"enabled": True, "tts_command": ["tts"],
+                         "play_command": ["paplay"], "sample_rate": 16000,
+                         "frame_samples": 1024, "timeout_s": 5.0})()
+    calls = []
+    def runner(argv, stdin, t):
+        calls.append(argv[0])
+        return pcm if argv[0] == "tts" else b""
+    bg, timer, levels, done = FakeBackground(), FakeTimer(), [], []
+    v = VoiceService(cfg, runner, clock=lambda: 1.0)
+    v.speak_async("hola", on_level=lambda l, n: levels.append((l, n)),
+                  on_ready=lambda d: calls.append(("ready", d)),
+                  on_done=lambda e: done.append(e),
+                  background=bg, timer=timer)
+
+    assert calls == []
+    bg.flush()
+    assert calls[0] == "tts" and calls[1] == ("ready", 0.128)
+    assert len(bg.jobs) == 1 and len(timer.pending) == 2
+    assert levels == [] and done == []
+
+
+def test_speak_async_delivers_levels_and_finishes_after_playback():
+    pcm = bytes([0, 255, 128, 10]) * 1024
+    cfg = type("C", (), {"enabled": True, "tts_command": ["tts"],
+                         "play_command": ["paplay"], "sample_rate": 16000,
+                         "frame_samples": 1024, "timeout_s": 5.0})()
+    bg, timer, levels, done = FakeBackground(), FakeTimer(), [], []
+    v = VoiceService(cfg, lambda argv, stdin, t: pcm, clock=lambda: 2.0)
+    v.speak_async("hola", on_level=lambda l, n: levels.append((l, n)),
+                  on_ready=lambda d: None, on_done=done.append,
+                  background=bg, timer=timer)
+    bg.flush()
+    timer.fire()
+    assert levels and done == []
+    bg.flush()
+    assert done == [None]
+    assert timer.cancelled
+    assert levels[-1][0] == 0.0
+
+
+def test_speak_async_reports_synthesis_error_once():
+    cfg = type("C", (), {"enabled": True, "tts_command": ["tts"],
+                         "play_command": ["paplay"], "sample_rate": 16000,
+                         "frame_samples": 1024, "timeout_s": 5.0})()
+    def boom(argv, stdin, t):
+        raise RuntimeError("tts roto")
+    bg, timer, done = FakeBackground(), FakeTimer(), []
+    v = VoiceService(cfg, boom, clock=lambda: 0.0)
+    v.speak_async("hola", on_level=lambda *a: None, on_ready=lambda d: None,
+                  on_done=done.append, background=bg, timer=timer)
+    bg.flush()
+    assert len(done) == 1 and "tts roto" in done[0]
+    assert bg.jobs == [] and timer.pending == []

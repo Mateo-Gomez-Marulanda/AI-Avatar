@@ -7,6 +7,42 @@ class InlineBackground:
     def run(self, work, done): done(work())
 
 
+class FakeBackground:
+    """Captura trabajos y callbacks sin ejecutarlos."""
+
+    def __init__(self): self.jobs = []
+
+    def run(self, work, done): self.jobs.append((work, done))
+
+    def flush(self):
+        work, done = self.jobs.pop(0)
+        done(work())
+
+
+class FakeTimer:
+    """Temporizador de un solo disparo que se acciona manualmente."""
+
+    def __init__(self): self.pending = []; self.cancelled = []
+
+    def after(self, delay_s, callback):
+        handle = (delay_s, callback)
+        self.pending.append(handle)
+        return handle
+
+    def cancel(self, handle):
+        if handle in self.pending:
+            self.pending.remove(handle)
+        self.cancelled.append(handle)
+
+    def fire(self):
+        _, callback = self.pending.pop(0)
+        callback()
+
+    def fire_all(self):
+        while self.pending:
+            self.fire()
+
+
 class DeferredBackground:
     def __init__(self): self.pending = []
     def run(self, work, done): self.pending.append((work, done))
