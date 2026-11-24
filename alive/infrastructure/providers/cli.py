@@ -12,6 +12,8 @@ from alive.domain.contracts import AiReply, CommandRunner, ProviderError
 Runner = CommandRunner | Callable[[list[str], bytes, float], str]
 
 _ANSI_RE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
+# `opencode run` imprime una cabecera de estado: "> <agente> · <modelo>".
+_STATUS_HEADER_RE = re.compile(r"^> .+ · .+$")
 
 
 class CliProvider:
@@ -50,6 +52,9 @@ class CliProvider:
 
         out = self._run(argv, self._prompt(prompt, history), self.config.timeout_s)
         clean = _ANSI_RE.sub("", out)
+        clean = "\n".join(
+            line for line in clean.splitlines() if not _STATUS_HEADER_RE.match(line)
+        )
 
         if self._id_re is not None:
             kept = []

@@ -7,6 +7,13 @@ def test_strips_ansi_from_output():
                     lambda argv, stdin, timeout_s: out)
     assert p.ask("q", ()).text == "Hola mundo"
 
+def test_strips_opencode_status_header():
+    out = "\x1b[0m\n> build · big-pickle\nOK\n"
+    p = CliProvider(ProviderConfig(command=["opencode", "run"], session_mode="oneshot"),
+                    lambda argv, stdin, timeout_s: out)
+    assert p.ask("q", ()).text == "OK"
+
+
 def test_resume_reuses_session_id():
     calls = []
     def runner(argv, stdin, timeout_s):
