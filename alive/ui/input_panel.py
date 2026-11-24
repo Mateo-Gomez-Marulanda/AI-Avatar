@@ -40,14 +40,18 @@ class InputPanel:
         box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
         box.set_border_width(8)
 
+        self.status = Gtk.Label(label="")
+        self.status.set_no_show_all(True)
+        box.pack_start(self.status, False, False, 0)
+
         self.entry = Gtk.Entry()
         self.entry.set_placeholder_text("Escribe a Alive…")
         self.entry.connect("activate", self._on_activate)
         box.pack_start(self.entry, True, True, 0)
 
-        send = Gtk.Button(label="Enviar")
-        send.connect("clicked", self._on_send)
-        box.pack_start(send, False, False, 0)
+        self.send = Gtk.Button(label="Enviar")
+        self.send.connect("clicked", self._on_send)
+        box.pack_start(self.send, False, False, 0)
 
         self.mic = Gtk.Button(label="Micrófono")
         self.mic.set_events(
@@ -66,6 +70,7 @@ class InputPanel:
         box.pack_start(self.quit_button, False, False, 0)
 
         self.window.add(box)
+        self.window.connect("delete-event", self._on_delete)
         accel_group = Gtk.AccelGroup()
         key, mods = Gtk.accelerator_parse("<Control>q")
         accel_group.connect(key, mods, 0, self._on_quit_accel)
@@ -86,13 +91,22 @@ class InputPanel:
         self.window.present()
         self.entry.grab_focus()
 
+    def set_busy(self, busy: bool, status: str = "") -> None:
+        self.entry.set_sensitive(not busy)
+        self.send.set_sensitive(not busy)
+        self.mic.set_sensitive(not busy)
+        self.status.set_text(status)
+        if status:
+            self.status.show()
+        else:
+            self.status.hide()
+
     def _submit(self) -> None:
         text = self.entry.get_text().strip()
         if not text:
             return
         self.entry.set_text("")
         self.on_text_submit(text)
-        self.hide()
 
     def _on_activate(self, entry) -> None:
         self._submit()
@@ -114,8 +128,11 @@ class InputPanel:
         held = time.monotonic() - self._held_since
         self._held_since = None
         self.on_ptt_hold(held)
-        self.hide()
         return False
+
+    def _on_delete(self, widget, event) -> bool:
+        self.hide()
+        return True
 
     def _on_quiet(self, button) -> None:
         if self.on_toggle_quiet is not None:
