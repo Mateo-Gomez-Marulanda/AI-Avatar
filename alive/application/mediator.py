@@ -26,6 +26,7 @@ from alive.domain.contracts import (
     AvatarViewLike,
     BackgroundLike,
     CommandExecutor,
+    LevelTimer,
     ProviderError,
     VoiceLike,
 )
@@ -53,6 +54,16 @@ class _Transcript:
     error: str | None = None
 
 
+class _SilentTimer:
+    """Compatibilidad temporal hasta que `main` inyecte el temporizador GTK."""
+
+    def after(self, delay_s: float, callback) -> object:
+        return None
+
+    def cancel(self, handle: object) -> None:
+        return None
+
+
 class Mediator:
     def __init__(
         self,
@@ -66,6 +77,7 @@ class Mediator:
         clock: Callable[[], float],
         background: BackgroundLike,
         approver: Approver,
+        timer: LevelTimer | None = None,
         executor: CommandExecutor,
         on_status: Callable[[bool, str], None] | None = None,
     ) -> None:
@@ -79,12 +91,15 @@ class Mediator:
         self.background = background
         self.approver = approver
         self.executor = executor
+        self.timer = timer if timer is not None else _SilentTimer()
         self.on_status = on_status
         self.conversation = Conversation(config.conversation.max_chars)
         self.system_prompt = build_system_prompt(config.apps, config.commands.enabled)
         self.busy = False
         self._command_count = 0
         self._quiet = False
+        self._quiet_rect = None
+        self._ptt_at: float | None = None
 
     def submit_text(self, text: str) -> None:
         text = text.strip()
@@ -244,18 +259,31 @@ class Mediator:
     def _display(self, text: str) -> None:
         self.view.show_bubble(text, self.config.bubble_ms_per_char)
         self.engine.speak(text, self.clock())
+        self._status(True, "Hablando…")
         try:
-            self.voice.speak(
+            self.voice.speak_async(
                 text,
                 on_level=lambda level, now: self.engine.set_audio_level(level, now),
+                on_ready=lambda duration: self.engine.set_speech_duration(
+                    duration, self.clock()
+                ),
+                on_done=self._on_speech_done,
+                background=self.background,
+                timer=self.timer,
             )
         except Exception as exc:
             logger.warning("Voz no disponible: %s", exc)
-        self._finish_turn()
+            self._on_speech_done(f"No pude sintetizar la voz: {exc}")
 
-    def _finish_turn(self) -> None:
+    def _on_speech_done(self, error: str | None) -> None:
+        if error:
+            logger.warning("Voz no disponible: %s", error)
+        self.engine.end_speech(self.clock())
+        self._finish_turn("Voz no disponible" if error else "")
+
+    def _finish_turn(self, status: str = "") -> None:
         self.busy = False
-        self._status(False, "")
+        self._status(False, status)
 
     def _end_with_error(self, message: str) -> None:
         logger.error("%s", message)
@@ -270,7 +298,9 @@ class Mediator:
     def ptt_start(self) -> None:
         if self.busy:
             return
-        self.engine.transition_to("escuchando", self.clock())
+        now = self.clock()
+        self._ptt_at = now
+        self.engine.transition_to("escuchando", now)
 
     def _transcribe(self, seconds: float) -> _Transcript:
         try:
@@ -280,9 +310,14 @@ class Mediator:
         except Exception as exc:
             return _Transcript(error=f"No pude transcribir: {exc}")
 
-    def ptt_end(self, held_seconds: float) -> None:
+    def ptt_end(self, held_seconds: float | None = None) -> None:
         if self.busy:
             return
+        if held_seconds is None:
+            held_seconds = (
+                0.0 if self._ptt_at is None else max(0.0, self.clock() - self._ptt_at)
+            )
+        self._ptt_at = None
         work = lambda: self._transcribe(held_seconds)
         self.background.run(work, self._on_transcript)
 
@@ -297,12 +332,20 @@ class Mediator:
             self.engine.idle(self.clock())
 
     def toggle_no_molestar(self) -> None:
+        now = self.clock()
         self._quiet = not self._quiet
-        self.view.set_click_through(self._quiet)
         if self._quiet:
-            self.engine.transition_to("no_molestar", self.clock())
+            self._quiet_rect = self.view.current_rect()
+            self.engine.set_quiet(True, now)
+            self.engine.begin_snap(now)
+            self.view.snap_to(self.config.quiet_zone)
         else:
-            self.engine.idle(self.clock())
+            target = self._quiet_rect or self.view.current_rect()
+            self._quiet_rect = None
+            self.engine.set_quiet(False, now)
+            self.engine.begin_snap(now)
+            self.view.snap_to(target)
+        self.view.set_click_through(self._quiet)
 
     def on_drag_start(self) -> None:
         self.engine.begin_drag(self.clock())

@@ -8,6 +8,7 @@ from typing import Protocol, TypeVar, runtime_checkable
 
 from alive.domain.actions import CommandRequest, CommandResult
 from alive.domain.animation import Frame
+from alive.domain.geometry import Rect
 
 T = TypeVar("T")
 
@@ -83,7 +84,11 @@ class AvatarViewLike(Protocol):
 
     def set_click_through(self, enabled: bool) -> None: ...
 
-    def snap_to(self, zone_name: str) -> None: ...
+    def current_rect(self) -> Rect: ...
+
+    def current_zone(self) -> str: ...
+
+    def snap_to(self, target: str | Rect) -> None: ...
 
 
 @runtime_checkable
@@ -92,4 +97,13 @@ class VoiceLike(Protocol):
 
     def transcribe(self, audio: bytes) -> str: ...
 
-    def speak(self, text: str, on_level: Callable[[float, float], None]) -> None: ...
+    def speak_async(
+        self,
+        text: str,
+        *,
+        on_level: Callable[[float, float], None],
+        on_ready: Callable[[float], None],
+        on_done: Callable[[str | None], None],
+        background: BackgroundLike,
+        timer: LevelTimer,
+    ) -> None: ...

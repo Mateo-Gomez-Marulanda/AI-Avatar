@@ -242,3 +242,61 @@ def test_voice_speaks_final_reply_after_command():
     )
     m.submit_text("ejecuta")
     assert voice.spoken == ["Listo"]
+
+
+def test_turn_stays_busy_until_speech_is_done():
+    background = DeferredBackground()
+    voice = FakeVoice()
+    voice.defer_speech = True
+    m = make_mediator(ai=FakeAi(["Hola"]), voice=voice, background=background)
+    m.submit_text("hola")
+    background.flush()
+    assert m.busy is True and m.engine.state == "hablando"
+    voice.finish_speech()
+    assert m.busy is False and m.engine.state == "sentado"
+
+
+def test_speech_error_finishes_turn_and_keeps_reply_visible():
+    background = DeferredBackground()
+    voice = FakeVoice()
+    voice.defer_speech = True
+    m = make_mediator(ai=FakeAi(["Hola"]), voice=voice, background=background)
+    m.submit_text("hola")
+    background.flush()
+    voice.finish_speech("tts roto")
+    assert m.busy is False and m.view.bubbles[-1] == "Hola"
+
+
+def test_ptt_end_without_argument_uses_mediator_clock():
+    voice = FakeVoice()
+    times = [1.0, 3.5]
+    def clock():
+        return times.pop(0) if len(times) > 1 else times[0]
+    m = make_mediator(ai=FakeAi([]), voice=voice, clock=clock)
+    m.ptt_start()
+    m.ptt_end()
+    assert voice.records == [2.5]
+
+
+def test_quiet_moves_to_corner_and_restores_exact_rect():
+    from alive.domain.config import Zone
+    from alive.domain.geometry import Rect
+
+    view = FakeView()
+    config = make_config(zones={"no_molestar": Zone("bottom-right", margin=12)})
+    m = make_mediator(ai=FakeAi([]), config=config, view=view)
+    original = view.current_rect()
+    m.toggle_no_molestar()
+    assert view.snapped[-1] == "no_molestar" and view.click_through is True
+    assert m.engine.state == "no_molestar"
+    m.toggle_no_molestar()
+    assert view.snapped[-1] == original and view.click_through is False
+    assert isinstance(original, Rect)
+
+
+def test_quiet_off_during_turn_restores_in_flight_state():
+    m = make_mediator(ai=FakeAi([]), background=DeferredBackground())
+    m.submit_text("uno")
+    m.toggle_no_molestar()
+    m.toggle_no_molestar()
+    assert m.engine.state == "pensando" and m.busy is True

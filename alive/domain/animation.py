@@ -54,6 +54,7 @@ class AnimationEngine:
         self._dragging = False
         self._snap_start: float | None = None
         self._return_at: float | None = None
+        self._snap_return_state: str | None = None
         self._quiet = False
         self._quiet_state: str | None = None
         self._quiet_speaking_until = 0.0
@@ -122,6 +123,7 @@ class AnimationEngine:
 
     def begin_snap(self, now: float) -> None:
         self._dragging = False
+        self._snap_return_state = self._state
         self._snap_start = now
         self._return_at = now + self.snap_ms / 1000
 
@@ -169,9 +171,21 @@ class AnimationEngine:
 
         if self._return_at is not None:
             if now >= self._return_at:
-                self.idle(now)
+                previous = self._snap_return_state
                 self._snap_start = None
                 self._return_at = None
+                self._snap_return_state = None
+                in_turn = (
+                    previous is not None
+                    and previous != "arrastrado"
+                    and previous not in self.idle_states
+                    and previous not in ("musica", "no_molestar")
+                )
+                if in_turn:
+                    self._state = previous
+                    self._idle_since = now
+                else:
+                    self.idle(now)
             else:
                 assert self._snap_start is not None
                 duration = self._return_at - self._snap_start

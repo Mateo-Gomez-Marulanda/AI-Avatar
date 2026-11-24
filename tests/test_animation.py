@@ -99,3 +99,10 @@ def test_begin_snap_exposes_progress_and_returns_to_idle():
     assert mid.state == "arrastrado" and mid.snap_progress == 0.5
     end = e.tick(0.2)
     assert end.state == "sentado" and end.snap_progress == 1.0
+
+
+def test_snap_completion_preserves_in_flight_turn_state():
+    e = AnimationEngine(snap_ms=200)
+    e.transition_to("pensando", 0.0)
+    e.begin_snap(0.0)
+    assert e.tick(0.3).state == "pensando"

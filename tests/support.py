@@ -1,6 +1,7 @@
 from alive.domain.actions import CommandResult
 from alive.domain.config import Config, ProviderConfig, VoiceConfig
 from alive.domain.contracts import AiReply
+from alive.domain.geometry import Rect
 
 
 class InlineBackground:
@@ -64,12 +65,21 @@ class WorkerCrashBackground:
 
 
 class FakeView:
-    def __init__(self): self.bubbles = []
+    def __init__(self):
+        self.bubbles = []
+        self._rect = Rect(0, 0, 200, 300)
+        self.click_through = False
+        self.snapped = []
     def show_bubble(self, text, ms): self.bubbles.append(text)
     def hide_bubble(self): pass
     def render(self, frame): pass
-    def set_click_through(self, enabled): pass
-    def snap_to(self, zone): pass
+    def set_click_through(self, enabled): self.click_through = enabled
+    def current_rect(self): return self._rect
+    def current_zone(self): return "flotante"
+    def snap_to(self, target):
+        self.snapped.append(target)
+        if isinstance(target, Rect):
+            self._rect = target
 
 
 class FakeVoice:
@@ -78,6 +88,8 @@ class FakeVoice:
         self.records = []
         self.transcribe_error = None
         self.speak_error = None
+        self.defer_speech = False
+        self._speech_done = None
     def record(self, seconds):
         self.records.append(seconds)
         return b""
@@ -89,6 +101,21 @@ class FakeVoice:
         if self.speak_error is not None:
             raise self.speak_error
         self.spoken.append(text)
+    def speak_async(self, text, *, on_level, on_ready, on_done,
+                    background, timer):
+        if self.speak_error is not None:
+            on_ready(0.0)
+            on_done(str(self.speak_error))
+            return
+        self.spoken.append(text)
+        self._speech_done = on_done
+        on_ready(0.1)
+        if not self.defer_speech:
+            self.finish_speech()
+    def finish_speech(self, error=None):
+        done, self._speech_done = self._speech_done, None
+        if done is not None:
+            done(error)
 
 
 class FakeLauncher:
@@ -149,7 +176,7 @@ def make_config(**kw):
 
 def make_mediator(*, ai, config=None, engine=None, view=None, voice=None,
                   launcher=None, approver=None, executor=None, background=None,
-                  clock=lambda: 0.0, on_status=None):
+                  timer=None, clock=lambda: 0.0, on_status=None):
     from alive.application.mediator import Mediator
     from alive.domain.animation import AnimationEngine
     return Mediator(
@@ -161,6 +188,7 @@ def make_mediator(*, ai, config=None, engine=None, view=None, voice=None,
         config=config or make_config(),
         clock=clock,
         background=background or InlineBackground(),
+        timer=timer or FakeTimer(),
         approver=approver or FakeApprover(),
         executor=executor or FakeExecutor(),
         on_status=on_status,
