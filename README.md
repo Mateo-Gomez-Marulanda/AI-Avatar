@@ -4,11 +4,10 @@ Alive es un avatar flotante dibujado con GTK3 + GtkLayerShell que conversa con u
 CLI de IA y muestra las respuestas en un globo. Vive **debajo** del panel superior:
 no tapa los iconos ni desplaza la barra.
 
-La regla central es la separación de decisiones: **la IA nunca decide animaciones**.
-Solo puede emitir dos órdenes, `ESTADO=sentado|parado|musica` y `ABRIR=<alias>`.
-Escuchar, pensar, hablar, mover la boca, arrastrar y hacer snap los decide el motor
-local (`alive/domain/animation.py`). Cualquier otra línea (`ZONA=…`,
-`ESTADO=hablando`, etc.) se ignora.
+Desde el P0 es un asistente conversacional: recuerda el historial, propone acciones
+y el avatar decide qué se ejecuta. **La IA nunca decide animaciones ni ejecuta nada
+por su cuenta.** Las apps de la whitelist se abren directo; los comandos solo corren
+después de que el usuario apruebe el comando exacto.
 
 ## Qué hace y qué no hace
 
@@ -16,45 +15,66 @@ local (`alive/domain/animation.py`). Cualquier otra línea (`ZONA=…`,
 
 - Overlay transparente anclado a zonas de la pantalla (barra, costados o flotante).
 - Panel de texto, micrófono de pulsación mantenida (PTT) y botón «No molestar».
-- Globos de texto, boca sincronizada con la envolvente RMS del audio.
-- Arranque de aplicaciones permitidas por una whitelist.
+- Globos de texto y boca sincronizada con la envolvente RMS del audio.
+- Memoria de conversación: mensajes del usuario, respuestas y resultados de acciones.
+- Apps permitidas por una whitelist, abiertas sin diálogo ni aprobación.
+- Comandos con diálogo de aprobación: comando exacto, qué hace y por qué, con
+  timeout y ejecución en segundo plano (salida acotada y registro local).
+- Estados locales `pensando`, `esperando` y `ejecutando`; idle rotativo entre
+  `sentado` y `parado`; `musica` mientras reproduzca un reproductor MPRIS.
 - Cierre limpio con el botón «Salir» o `Ctrl+Q`.
 
 **No hace**
 
 - No incluye ni reemplaza a Veadotube: el renderer es propio.
-- No trae modelos locales: delega en cualquier CLI configurable.
+- No trae modelos locales: delega en OpenCode (o en otro CLI configurable).
+- No usa herramientas nativas de OpenCode: el agente `alive` las deniega todas.
+- No permite que el modelo pida estados visuales, animaciones ni música: los decide
+  el motor local.
 - No instala motores de voz: STT/TTS dependen de binarios del sistema.
 - No registra atajos globales del sistema.
 - No mueve el panel de texto al layer-shell: es una ventana GTK normal.
+- No recuerda aprobaciones: cada comando se aprueba una vez.
 
 ## Requisitos
 
 - KDE Plasma con Wayland (probado en Plasma 6 / Wayland).
 - GTK 3, GtkLayerShell (`GtkLayerShell-0.1.typelib`), PyGObject y pycairo.
 - Python 3.11+ (`tomllib`).
-- Un CLI de IA que lea por stdin y escriba por stdout.
+- **OpenCode autenticado** (`opencode run`, V2 con `--format json`) y un proveedor
+  o modelo con cuota disponible. Copia `.opencode/agents/alive.md` a
+  `~/.config/opencode/agents/alive.md`: ese agente deniega todas las herramientas.
+  Sin él, OpenCode responde «Agent not found» y no se ejecuta nada.
+- `playerctl` opcional para el estado `musica` (consulta MPRIS). Si falta, la música
+  queda desactivada y se registra una vez; el resto del avatar funciona igual.
 - Para voz: `ffmpeg` (captura), `whisper-cli` (STT), `piper` (TTS) y `paplay`
   (reproducción). Si faltan, el avatar avisa y oculta el micrófono.
 
 En Arch, por ejemplo:
 
 ```bash
-pacman -S gtk3 gtk-layer-shell python-gobject python-cairo
+pacman -S gtk3 gtk-layer-shell python-gobject python-cairo playerctl
 ```
 
 ## Instalación y arranque
 
 ```bash
 cp config.toml.example config.toml
+mkdir -p ~/.config/opencode/agents
+cp .opencode/agents/alive.md ~/.config/opencode/agents/alive.md
 python3 -m venv --system-site-packages .venv
 .venv/bin/python -m pip install pytest        # solo para desarrollar
 PYTHONPATH=. .venv/bin/python -m alive.main --config config.toml
 ```
 
-`--config` es opcional y por defecto vale `config.toml`. El archivo de ejemplo
-trae `voice.enabled = true` con rutas de modelos que probablemente no tengas:
-ajústalo a tus binarios o pon `enabled = false` para usar solo texto.
+`config.toml` está en `.gitignore`: es local y no se versiona; la plantilla
+comentada y versionada es `config.toml.example`. `--config` es opcional y por
+defecto vale `config.toml`. El ejemplo trae `voice.enabled = true` con rutas de
+modelos que probablemente no tengas: ajústalo o pon `enabled = false` para usar
+solo texto.
+
+Para usar otro CLI en modo texto, cambia `provider.command` y pon
+`provider.output_format = "text"`.
 
 ## Uso e interacción
 
@@ -63,7 +83,16 @@ ajústalo a tus binarios o pon `enabled = false` para usar solo texto.
 - **Panel**: escribe y pulsa Enter o «Enviar». «Micrófono» funciona como PTT:
   mantén pulsado mientras hablas y suelta para transcribir. «No molestar» pone
   el avatar en ese estado y deja pasar los clics; vuelve a pulsarlo para
-  restaurarlo. «Salir» cierra el programa.
+  restaurarlo. «Salir» cierra el programa. El panel permanece visible durante el
+  turno y muestra «Pensando…», «Esperando permiso…» o «Ejecutando…»; entrada,
+  enviar y micrófono quedan deshabilitados.
+- **«Abre firefox»**: el modelo propone una app de `[apps]` y se abre directo, sin
+  diálogo de aprobación. Si el alias no existe, no se abre nada y se avisa.
+- **«Ejecuta …»**: el modelo propone un comando y aparece el diálogo con el
+  comando exacto, qué hace y por qué, el directorio de trabajo, el timeout y si la
+  salida se enviará al modelo. «Ejecutar una vez» lo ejecuta; **Cancelar, Escape,
+  cerrar la ventana o vencer el timeout no ejecutan nada**. No hay terminal
+  interactiva: `sudo` u otros comandos que pidan contraseña pueden fallar.
 - **Arrastre**: pulsa, mueve y suelta. El avatar sigue al cursor aunque este
   salga de la ventana y luego se desplaza con una animación de snap (~250 ms)
   hasta la zona cuyo centro queda más cerca. Empezar otro arrastre cancela el
@@ -81,89 +110,117 @@ Texto / PTT
     │
     ▼
 InputPanel (ui) ──callbacks──▶ Mediator (application)
-                                  ├─▶ CliProvider (infrastructure) ──▶ CLI de IA
-                                  ├─▶ parse_orders (domain) ──▶ ESTADO / ABRIR
-                                  │                              └─▶ AppLauncher
-                                  ├─▶ AnimationEngine (domain) ──▶ Frame
-                                  │        ▲
-                                  │        └── VoiceService ──▶ nivel de audio
-                                  ▼
-                          AvatarView.render (ui) ──▶ layer-shell + cairo
+                                   ├─▶ Conversation + build_prompt (memoria)
+                                   ├─▶ CliProvider + parse_opencode_output ──▶ OpenCode (agente alive)
+                                   ├─▶ parse_action (domain) ──▶ AppLauncher (directo)
+                                   │                        └─▶ GtkApprover ──▶ ShellCommandExecutor
+                                   │                                          └─▶ resultado al historial y al modelo
+                                   ├─▶ AnimationEngine (domain) ──▶ Frame
+                                   │        ▲
+                                   │        └── MusicMonitor + PlayerctlMusicSource ──▶ musica
+                                   ├─▶ on_status ──▶ InputPanel.set_busy
+                                   └─▶ logging (XDG_STATE_HOME/alive/alive.log)
+                                   ▼
+                           AvatarView.render (ui) ──▶ layer-shell + cairo
 ```
 
-`AnimationEngine.tick()` produce un `Frame(state, mouth, snap_progress)`.
-`main.py` lo llama cada 33 ms con `GLib.timeout_add` y entrega el resultado a la
-vista. Las llamadas al CLI y la captura/transcripción de voz corren en hilos de
-fondo (`GtkBackgroundRunner`) y vuelven al hilo GTK con `GLib.idle_add`, para no
-bloquear la interfaz. La síntesis de voz (`speak`) se ejecuta en el hilo GTK.
+La IA responde texto y, como máximo, **un** bloque:
+
+````markdown
+```alive-accion
+{"tipo": "app", "alias": ["firefox", "code"]}
+```
+````
+
+o, para comandos:
+
+````markdown
+```alive-accion
+{"tipo": "comando", "comando": "printf hola", "que_hace": "Imprime hola", "por_que": "El usuario lo pidió"}
+```
+````
+
+`parse_action` valida el bloque y lo quita del texto visible; el mediador comprueba
+los alias contra `[apps]`, pide aprobación para comandos y devuelve el resultado al
+modelo para que lo explique. Un bloque malformado o ambiguo no ejecuta nada.
+`AnimationEngine.tick()` produce un `Frame(state, mouth, snap_progress)`; `main.py`
+lo llama cada 33 ms con `GLib.timeout_add`. Las llamadas al CLI y la ejecución de
+comandos corren en hilos de fondo (`GtkBackgroundRunner`) y vuelven al hilo GTK;
+la voz se sintetiza en el hilo GTK.
 
 ## Estructura de carpetas
 
 | Ruta | Contribución al desarrollo |
 | --- | --- |
-| `alive/domain/` | Reglas puras del negocio: `config.py` (TOML y validación), `orders.py` (contrato cerrado), `animation.py` (estados, boca y snap), `geometry.py` (zonas y rectángulos), `contracts.py` (tipos y protocolos). Python puro: ni GTK ni `subprocess`. |
-| `alive/application/` | Casos de uso: `mediator.py` interpreta respuestas y coordina estado, globo, voz y apps; `audio.py` implementa captura/STT/TTS y la detección de binarios ausentes; `apps.py` aplica la whitelist. No contiene widgets. |
-| `alive/infrastructure/` | Adaptadores al mundo exterior: `providers/cli.py` habla con el CLI y limpia su salida; `background.py` ejecuta trabajo en hilos y devuelve resultados con GLib. |
-| `alive/ui/` | Todo lo visible: `avatar_view.py` dibuja el avatar con cairo, gestiona eventos, márgenes layer-shell, globo y snap; `input_panel.py` es la ventana de texto, PTT, «No molestar» y «Salir». |
-| `alive/main.py` | Raíz de composición: carga la configuración, obtiene el monitor, construye e inyecta las dependencias, conecta callbacks, registra el tick y arranca `Gtk.main()`. Es el único lugar que importa todas las capas y GTK para el bootstrap. |
-| `alive/providers/` | Directorio vacío heredado de la estructura anterior. Los proveedores reales viven en `alive/infrastructure/providers/`. |
-| `tests/` | Suite plana de pytest: un archivo por módulo, más `test_structure.py` (comprueba que los imports de cada capa siguen disponibles) y `fixtures/fake_config.toml` (config aislada, sin rutas de `/tmp`). |
-| `docs/` | `estructura-proyecto.md` (diseño por capas), `interaccion-y-salida.md` (clic, salida y voz), `movimiento-y-proveedor.md` (anclajes y OpenCode) y `superpowers/plans/` (planes de ejecución: la carpeta está ignorada para archivos nuevos, aunque algunos planes antiguos siguen versionados). |
-| Raíz del repo | `config.toml.example` (plantilla comentada), `plan-de-desarrollo.md` (diseño original y fuente de verdad) y este README. |
-| Ignorados | `.venv/`, `__pycache__/`, `.pytest_cache/`, `.superpowers/` y `superpowers/` son entornos, cachés y scratch de desarrollo; no forman parte del código. |
+| `alive/domain/` | Reglas puras del negocio: `config.py` (TOML y validación), `actions.py` (contrato de acciones, antes `orders.py`), `conversation.py` (memoria), `animation.py` (estados, boca y snap), `geometry.py` (zonas), `contracts.py` (tipos y protocolos). Python puro: ni GTK ni `subprocess`. |
+| `alive/application/` | Casos de uso: `mediator.py` (turnos, acciones y errores visibles), `prompt.py` (prompt de sistema e historial), `commands.py` (ejecución con `sh -c`), `music.py` (monitor de MPRIS), `audio.py` (captura/STT/TTS), `apps.py` (whitelist). No contiene widgets. |
+| `alive/infrastructure/` | Adaptadores al mundo exterior: `providers/cli.py` (CLI configurable), `providers/opencode.py` (NDJSON y errores), `mpris.py` (`playerctl`), `background.py` (hilos y GLib), `logging.py` (registro rotatorio 0600). |
+| `alive/ui/` | Todo lo visible: `avatar_view.py` (avatar, eventos, globo y snap), `input_panel.py` (texto, PTT y estado ocupado), `approval_dialog.py` (comando exacto y decisión). |
+| `alive/main.py` | Raíz de composición: carga la configuración, construye e inyecta dependencias, cablea callbacks y estado, registra el tick y arranca `Gtk.main()`. Es el único lugar que importa todas las capas y GTK. |
+| `tests/` | Suite plana de pytest: un archivo por módulo, `support.py` (fakes), `test_structure.py` (imports por capa), `test_smoke_flow.py` (smoke determinista con CLI falso real) y `fixtures/fake_config.toml`. |
+| `docs/` | `estructura-proyecto.md` (diseño por capas), `interaccion-y-salida.md` (clic, salida y voz), `movimiento-y-proveedor.md` (anclajes y OpenCode) y `superpowers/plans/` (planes de ejecución: los archivos nuevos se ignoran, aunque algunos planes antiguos siguen versionados). |
+| Raíz del repo | `config.toml.example` (plantilla comentada), `.opencode/agents/alive.md` (agente sin herramientas), `plan-de-desarrollo.md` (diseño original) y este README. |
+| Ignorados | `.venv/`, `__pycache__/`, `.pytest_cache/`, `.superpowers/`, `superpowers/`, los planes nuevos de `docs/superpowers/` y `config.toml` son entornos, cachés, scratch y configuración local; no forman parte del código. |
 
 Las dependencias apuntan en una sola dirección: `ui`, `application` e
-`infrastructure` pueden importar `domain`; `domain` no importa nada de esas
-capas; `main.py` importa todas para cablearlas. `test_structure.py` importa los
-módulos de cada capa para detectar que la reorganización sigue intacta.
+`infrastructure` pueden importar `domain`; `domain` no importa nada de esas capas;
+`main.py` importa todas para cablearlas. `test_structure.py` importa los módulos de
+cada capa para detectar que la reorganización sigue intacta.
 
 ## Configuración
 
-- **`[provider]`**: `command` es la única pieza de configuración ligada al
-  proveedor (el código, además, descarta la cabecera de estado que imprime
-  `opencode run`). El ejemplo usa OpenCode: `command = ["opencode", "run"]` con
-  `session_mode = "oneshot"`, que envía el historial en cada llamada sin depender
-  de ids de sesión. Otras opciones:
-
-  | Proveedor | `command` |
-  | --- | --- |
-  | Claude Code | `["claude", "-p"]` |
-  | OpenCode | `["opencode", "run"]` |
-  | OpenAI Codex | `["codex", "exec"]` |
-
-  `session_mode = "resume"` reutiliza la sesión del CLI; con `session_flag` y
-  `session_id_regex` se extrae el id de la salida. `prompt_template` usa
-  `{history}` y `{text}`.
-- **`[apps]`**: whitelist `alias = "comando con argumentos"`. El modelo solo
-  puede pedir `ABRIR=alias` si el alias existe; el comando se divide con
-  `shlex`, nunca pasa por un shell.
-- **`[zones.nombre]`**: `anchor` (`top`, `left`, `right`, `bottom`,
-  `floating`), `margin` y, solo para `floating`, `x`/`y`. Al soltar, se ancla a
-  la zona más cercana al cursor. `margin` del anclaje superior es la altura del
-  panel (p. ej. 32 px).
-- **`[voice]`**: `enabled`, `capture_command` (con `{duration}`),
-  `stt_command`, `tts_command`, `play_command`, `sample_rate`, `frame_samples` y
-  `timeout_s`. Las listas vacías desactivan cada paso; `sample_rate` y
-  `frame_samples` deben coincidir con el TTS para sincronizar la boca.
-- **Globales**: `idle_state` (por defecto `sentado`), `bubble_ms_per_char` y
-  `drag_snap_ms`.
+- **Globales**: `idle_states` (lista de estados para el idle, p. ej.
+  `["sentado", "parado"]`) e `idle_switch_s` (20 s) sustituyen al antiguo
+  `idle_state` singular. También `bubble_ms_per_char` (45) y `drag_snap_ms` (250).
+- **`[provider]`**: `command` es el CLI con el que se habla; el ejemplo usa
+  `["opencode", "run", "--format", "json", "--agent", "alive", "--archived"]`.
+  `output_format = "json"` parsea el NDJSON de OpenCode; usa `"text"` para otros
+  CLIs. `workdir = "~"` fija el directorio de trabajo del CLI (el agente global
+  vive en `~/.config/opencode/agents/`). `timeout_s = 90.0`. Ya no existen
+  `session_mode`, `session_flag`, `session_id_regex` ni `prompt_template`: el
+  historial se envía en cada llamada y el prompt se construye en local.
+- **`[apps]`**: whitelist `alias = "comando con argumentos"`. El modelo solo puede
+  pedir un alias de esta lista; el comando se divide con `shlex`, nunca pasa por
+  un shell.
+- **`[commands]`**: `enabled` (bloqueo duro, sin diálogo si es `false`),
+  `timeout_s`, `max_output_bytes`, `max_per_turn` (3 comandos por turno),
+  `approval_timeout_s` (120 s), `working_dir` y `share_output_with_model`. Si la
+  salida no se comparte, el historial no la guarda y el turno termina sin otra
+  llamada al modelo; la salida completa queda solo en el registro local.
+- **`[conversation]`**: `max_chars` (6000) recorta solo el transcript; el prompt
+  de sistema se envía siempre.
+- **`[music]`**: `enabled`, `players` (nombres de `playerctl`; `[]` = cualquiera) y
+  `poll_s`. Solo el estado `Playing` activa `musica`. El modelo no puede pedirlo.
+- **`[zones.nombre]`**: `anchor` (`top`, `left`, `right`, `bottom`, `floating`),
+  `margin` y, solo para `floating`, `x`/`y`. `margin` del anclaje superior es la
+  altura del panel (p. ej. 32 px).
+- **`[voice]`**: `enabled`, `capture_command` (con `{duration}`), `stt_command`,
+  `tts_command`, `play_command`, `sample_rate`, `frame_samples` y `timeout_s`. Las
+  listas vacías desactivan cada paso; `sample_rate` y `frame_samples` deben
+  coincidir con el TTS para sincronizar la boca.
 
 ## Desarrollo
 
 ```bash
-.venv/bin/python -m pytest -q
+.venv/bin/python -m pytest -q                       # suite completa
+.venv/bin/python -m pytest tests/test_smoke_flow.py -q   # smoke determinista
 ```
 
 Se trabaja con TDD: cada cambio empieza por un test que falla, sigue con la
-implementación mínima y termina con la suite en verde. Para añadir cosas:
+implementación mínima y termina con la suite en verde. El smoke usa un script de
+Python real lanzado como proceso CLI falso (sin inyección de proveedor desde
+Python): emite NDJSON en el formato que consume `parse_opencode_output`, propone
+un comando, lo aprueba, lo ejecuta con `ShellCommandExecutor` y comprueba el
+segundo turno y el globo final. Es la puerta de aceptación determinista del P0.
+
+Para añadir cosas:
 
 - **Otro proveedor**: módulo en `alive/infrastructure/providers/` que cumpla el
   protocolo de `domain/contracts.py`; no tocar la vista.
 - **Otra app**: entrada en `[apps]`, sin código nuevo.
 - **Otra zona**: entrada en `[zones.nombre]`, sin código nuevo.
-- **Otro estado que la IA pueda pedir**: `ALLOWED_STATES` en `domain/orders.py`
-  y `STATES` en `domain/animation.py`. Los estados internos (`escuchando`,
-  `pensando`, `hablando`, `arrastrado`, `no_molestar`) los decide el motor.
+- **Otra acción de la IA**: ampliar `alive/domain/actions.py`, el prompt y el
+  mediador; mantener la aprobación para cualquier comando.
 - **Otro widget o gesto**: `alive/ui/`, conectándolo desde `main.build`.
 
 El avatar dibujado es un placeholder: sustituye `_draw` en
@@ -173,20 +230,40 @@ cambia en `_SIZE` y la silueta que acepta clics en `_BODY`/`_HEAD`.
 
 ## Comprobación manual
 
-1. Clic en el avatar → se abre el panel; escribe y pulsa Enter → globo y boca.
-2. Arrastre → al soltar se ancla a barra o costado con animación; el panel de
-   Plasma no se mueve y el avatar sigue al cursor aunque salgas de la ventana.
-3. Arrastre, suelta y vuelve a arrastrar antes de 250 ms → no hay salto atrás.
-4. «Micrófono» mantenido → transcripción y respuesta; si faltan binarios,
-   aviso visible y micrófono oculto.
-5. Respuesta con `ABRIR=firefox` → se abre Firefox; `ESTADO=musica` → cambia el
-   color; `ZONA=…` → se ignora.
-6. Clic en el área vacía alrededor del avatar → pasa a la ventana de debajo.
-7. «No molestar» → el avatar deja de recibir clics y vuelve al pulsar de nuevo.
-8. «Salir» o `Ctrl+Q` → termina el proceso.
+1. Conversación de dos turnos: la segunda pregunta conserva la primera.
+2. «Pensando…» visible mientras se espera al modelo.
+3. «Abre firefox»: se abre directo, sin diálogo.
+4. Sin acciones, el idle alterna `sentado` y `parado` cada 20 s.
+5. Abrir Spotify (desde el avatar o a mano) y reproducir: el avatar pasa a
+   `musica`; pausar o cerrar Spotify lo devuelve a idle. El modelo no puede pedir
+   `musica`.
+6. «Ejecuta `printf hola`»: aparece el diálogo con comando, qué hace y por qué;
+   Cancelar no ejecuta; Ejecutar muestra el resultado y el modelo lo explica.
+7. Comando con código de salida distinto de cero: el modelo recibe el error.
+8. Timeout de aprobación: se cancela solo.
+9. OpenCode sin autenticación o con límite: globo de error claro, sin bloqueo.
+10. Segundo mensaje mientras se piensa: no se lanza otra llamada.
+11. `config.toml` sin agente `alive`: error claro, no se ejecuta nada.
+12. Smoke con CLI falso de extremo a extremo: es la puerta de aceptación
+    determinista (`.venv/bin/python -m pytest tests/test_smoke_flow.py -q`).
+13. Smoke real con OpenCode: se hará si hay un proveedor autenticado o un modelo
+    disponible; si no, se valida el parser con NDJSON real capturado y se deja
+    documentado el bloqueo por autenticación. El smoke real no bloquea el P0.
+14. `.venv/bin/python -m pytest -q` en verde.
 
 ## Solución de problemas
 
+- **OpenCode alcanzó el límite gratuito**: conecta un proveedor o cambia de modelo.
+  El avatar muestra el error y sigue respondiendo; no se bloquea.
+- **Falta el agente `alive`**: copia `.opencode/agents/alive.md` a
+  `~/.config/opencode/agents/alive.md`. No hay fallback al agente `build`.
+- **`sudo` u otros comandos interactivos fallan**: no hay TTY. Usa comandos no
+  interactivos; el diálogo avisa antes de aprobar.
+- **`playerctl` ausente o reproductor distinto**: `musica` queda inactiva y se
+  registra una vez. Instala `playerctl` o ajusta `[music].players` al nombre que
+  muestra `playerctl -l`.
+- **El diálogo de aprobación no recibe el foco en Wayland**: es una ventana
+  normal; haz clic en ella. Cancelar, Escape y cerrar equivalen a no ejecutar.
 - **No aparece el panel**: haz clic sobre el avatar (no sobre el área vacía que
   lo rodea). Un temblor de hasta 10 px sigue contando como clic.
 - **El micrófono no hace nada**: revisa `[voice]` en `config.toml`. Sin
