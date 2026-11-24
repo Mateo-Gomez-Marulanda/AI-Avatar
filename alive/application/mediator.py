@@ -55,7 +55,7 @@ class Mediator:
             self.view.show_bubble(
                 "No pude responder", self.config.bubble_ms_per_char
             )
-            self.engine.transition_to(self.config.idle_state, self.clock())
+            self.engine.transition_to(self.engine.idle_state, self.clock())
             return
 
         parsed = parse_orders(reply.text)
@@ -94,7 +94,7 @@ class Mediator:
             self.view.show_bubble(
                 "No pude escuchar", self.config.bubble_ms_per_char
             )
-            self.engine.transition_to(self.config.idle_state, self.clock())
+            self.engine.transition_to(self.engine.idle_state, self.clock())
 
     def apply_order(self, order: Order) -> bool:
         if order.kind == "ESTADO":
@@ -111,7 +111,7 @@ class Mediator:
     def toggle_no_molestar(self) -> None:
         self._quiet = not self._quiet
         self.view.set_click_through(self._quiet)
-        state = "no_molestar" if self._quiet else self.config.idle_state
+        state = "no_molestar" if self._quiet else self.engine.idle_state
         self.engine.transition_to(state, self.clock())
 
     def on_drag_start(self) -> None:

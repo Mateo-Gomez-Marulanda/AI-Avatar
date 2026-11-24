@@ -72,6 +72,27 @@ def test_provider_error_returns_to_idle_with_message():
     m.submit_text("pregunta")
     assert e.state == "sentado" and "No pude responder" in v.bubble
 
+def test_provider_error_returns_to_current_engine_idle_state():
+    from alive.domain.animation import AnimationEngine
+    from alive.domain.contracts import ProviderError
+    class V:
+        def show_bubble(self, text, ms): self.bubble=text
+        def hide_bubble(self): pass
+        def render(self, f): pass
+        def set_click_through(self, e): pass
+        def snap_to(self, z): pass
+    class AI:
+        def ask(self, p): raise ProviderError("timeout")
+    class Voice:
+        def record(self, s): return b""
+        def transcribe(self, a): return ""
+        def speak(self, t, on_level): pass
+    engine = AnimationEngine()
+    engine.transition_to("parado", 0.0)
+    m = make(engine=engine, view=V(), ai=AI(), voice=Voice(), launcher=object())
+    m.submit_text("pregunta")
+    assert engine.state == "parado"
+
 def test_unknown_app_order_is_ignored():
     from alive.domain.animation import AnimationEngine
     e = AnimationEngine(); m = make(engine=e, view=object(), ai=object(), voice=object(),

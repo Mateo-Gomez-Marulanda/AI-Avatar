@@ -95,11 +95,6 @@ class Config:
     bubble_ms_per_char: int = 45
     drag_snap_ms: int = 250
 
-    @property
-    def idle_state(self) -> str:
-        """Estado idle inicial, para el mediador anterior a la Task 10."""
-        return self.idle_states[0]
-
 
 def _section(data: dict[str, Any], name: str) -> dict[str, Any]:
     value = data.get(name, {})

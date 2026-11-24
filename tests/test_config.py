@@ -23,6 +23,12 @@ def test_example_has_new_sections():
     assert cfg.idle_states == ("sentado", "parado")
 
 
+def test_config_has_no_single_idle_state():
+    cfg = load_config(EXAMPLE)
+    assert not hasattr(cfg, "idle_state")
+    assert cfg.idle_states == ("sentado", "parado")
+
+
 def test_rejects_idle_states_table(tmp_path):
     p = tmp_path / "c.toml"
     p.write_text('''\
