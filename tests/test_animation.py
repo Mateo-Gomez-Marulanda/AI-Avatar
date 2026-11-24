@@ -82,9 +82,9 @@ def test_quiet_holds_idle_and_music_and_restores_previous_state():
     e = AnimationEngine()
     e.transition_to("pensando", 0.0)
     e.set_quiet(True, 1.0)
-    assert e.tick(2.0).state == "no_molestar"
+    assert e.tick(2.0).state == "pensando"
     e.set_music(True, 3.0)
-    assert e.tick(3.0).state == "no_molestar"
+    assert e.tick(3.0).state == "pensando"
     e.set_quiet(False, 4.0)
     assert e.state == "pensando"
     e.idle(5.0)
@@ -106,3 +106,33 @@ def test_snap_completion_preserves_in_flight_turn_state():
     e.transition_to("pensando", 0.0)
     e.begin_snap(0.0)
     assert e.tick(0.3).state == "pensando"
+
+
+def test_snap_completion_does_not_resurrect_a_turn_that_ended():
+    e = AnimationEngine(snap_ms=200)
+    e.transition_to("pensando", 0.0)
+    e.begin_snap(0.0)
+    e.idle(0.1)
+    assert e.tick(0.3).state in e.idle_states
+
+
+def test_speech_ending_while_quiet_does_not_resurrect_hablando():
+    e = AnimationEngine()
+    e.speak("hola", 0.0, duration_s=5.0)
+    e.set_quiet(True, 1.0)
+    assert e.state == "hablando"
+    e.end_speech(2.5)
+    assert e.state == "no_molestar"
+    e.set_quiet(False, 3.0)
+    assert e.state in e.idle_states
+    assert e.tick(3.0).mouth == 0.0
+
+
+def test_turn_started_while_quiet_is_not_restored_after_it_ends():
+    e = AnimationEngine()
+    e.transition_to("pensando", 0.0)
+    e.set_quiet(True, 1.0)
+    e.speak("hola", 2.0, duration_s=1.0)
+    e.end_speech(3.0)
+    e.set_quiet(False, 4.0)
+    assert e.state in e.idle_states

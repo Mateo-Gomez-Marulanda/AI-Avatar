@@ -93,5 +93,5 @@ def test_build_does_not_wire_ptt_without_voice(monkeypatch, tmp_path):
     monkeypatch.setattr(main.AvatarView, "set_callbacks", spy)
     monkeypatch.setattr(main, "missing_voice_commands", lambda cfg: ["stt"])
     main.build(_voice_config(tmp_path))
-    assert captured["on_ptt_start"]() is None
-    assert captured["on_ptt_end"]() is None
+    assert captured["on_ptt_start"] is None
+    assert captured["on_ptt_end"] is None

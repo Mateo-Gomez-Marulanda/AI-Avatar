@@ -110,8 +110,8 @@ def build(config_path: str | Path) -> tuple[Mediator, AvatarView, InputPanel, An
         mediator.on_drag_start,
         mediator.on_drag_end,
         lambda: (panel.show(), panel.present()),
-        on_ptt_start=mediator.ptt_start if voice_available else lambda: None,
-        on_ptt_end=mediator.ptt_end if voice_available else lambda: None,
+        on_ptt_start=mediator.ptt_start if voice_available else None,
+        on_ptt_end=mediator.ptt_end if voice_available else None,
     )
     if config.music.enabled:
         source = PlayerctlMusicSource(config.music.players)

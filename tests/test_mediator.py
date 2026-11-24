@@ -302,6 +302,22 @@ def test_quiet_off_during_turn_restores_in_flight_state():
     assert m.engine.state == "pensando" and m.busy is True
 
 
+def test_speech_ends_while_quiet_then_quiet_off_stays_idle():
+    background = DeferredBackground()
+    voice = FakeVoice()
+    voice.defer_speech = True
+    m = make_mediator(ai=FakeAi(["Hola"]), voice=voice, background=background)
+    m.submit_text("hola")
+    background.flush()
+    m.toggle_no_molestar()
+    assert m.engine.state == "hablando"
+    voice.finish_speech()
+    assert m.busy is False and m.engine.state == "no_molestar"
+    m.toggle_no_molestar()
+    assert m.engine.state in m.engine.idle_states
+    assert m.engine.speaking_until == 0.0
+
+
 def test_mediator_requires_an_injected_timer():
     import pytest
     from alive.application.mediator import Mediator

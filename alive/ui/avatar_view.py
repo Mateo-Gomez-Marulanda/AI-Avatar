@@ -54,6 +54,7 @@ class AvatarView:
         self._snap_zone: str | None = None
         self._current_rect = Rect(0, 0, *_SIZE)
         self._ptt_active = False
+        self.ptt_enabled = False
         self._zone_name = "flotante"
         self.on_drag_start = lambda: None
         self.on_drag_end = lambda zone: None
@@ -124,10 +125,14 @@ class AvatarView:
         on_activate_input,
         on_ptt_start=None,
         on_ptt_end=None,
+        ptt_enabled: bool = True,
     ) -> None:
         self.on_drag_start = on_drag_start
         self.on_drag_end = on_drag_end
         self.on_activate_input = on_activate_input
+        self.ptt_enabled = (
+            ptt_enabled and on_ptt_start is not None and on_ptt_end is not None
+        )
         if on_ptt_start is not None:
             self.on_ptt_start = on_ptt_start
         if on_ptt_end is not None:
@@ -204,11 +209,13 @@ class AvatarView:
         if self._click_through:
             return False
         if event.button == 3:
+            if not self.ptt_enabled or self._dragging or self._ptt_active:
+                return False
             self._ptt_active = True
             self.area.grab_add()
             self.on_ptt_start()
             return True
-        if event.button != 1:
+        if event.button != 1 or self._ptt_active:
             return False
         self._dragging = False
         self._drag_offset = (int(event.x), int(event.y))

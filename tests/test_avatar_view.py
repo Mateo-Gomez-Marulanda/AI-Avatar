@@ -171,6 +171,49 @@ def test_bottom_right_anchors_both_edges():
     assert GtkLayerShell.get_margin(view.window, E.RIGHT) == 12
 
 
+def test_disabled_ptt_ignores_right_button_without_grabbing(monkeypatch):
+    events, grabs = [], []
+    view = av.AvatarView(load_config(CONFIG), Rect(0, 0, 1366, 768))
+    monkeypatch.setattr(av.Gtk.Widget, "grab_add", lambda w: grabs.append("add"))
+    monkeypatch.setattr(av.Gtk.Widget, "grab_remove", lambda w: grabs.append("remove"))
+    view.set_callbacks(
+        lambda: None, lambda zone: None, lambda: None,
+        on_ptt_start=lambda: events.append("ptt_start"),
+        on_ptt_end=lambda: events.append("ptt_end"),
+        ptt_enabled=False,
+    )
+    assert view._button_press(None, ev3()) is False
+    assert view._button_release(None, ev3()) is False
+    assert events == [] and grabs == []
+
+
+def test_no_ptt_callbacks_disables_avatar_ptt():
+    view, _ = make_view()
+    assert view.ptt_enabled is False
+
+
+def test_right_button_during_drag_does_not_interrupt_it(monkeypatch):
+    events = []
+    view = av.AvatarView(load_config(CONFIG), Rect(0, 0, 1366, 768))
+    view.set_callbacks(
+        lambda: events.append("drag"), lambda zone: events.append(zone),
+        lambda: events.append("panel"),
+        on_ptt_start=lambda: events.append("ptt_start"),
+        on_ptt_end=lambda: events.append("ptt_end"),
+    )
+    monkeypatch.setattr(av.Gtk.Widget, "grab_add", lambda w: None)
+    monkeypatch.setattr(av.Gtk.Widget, "grab_remove", lambda w: None)
+
+    view._button_press(None, ev())
+    view._motion(None, ev(80, 80, Gdk.ModifierType.BUTTON1_MASK))
+    assert view._button_press(None, ev3()) is False
+    assert view._ptt_active is False and "ptt_start" not in events
+
+    view._button_release(None, ev3())
+    view._button_release(None, ev(80, 80))
+    assert "ptt_end" not in events and "drag" in events
+
+
 def test_snap_to_rect_interpolates_and_tracks_current_rect(monkeypatch):
     view = av.AvatarView(load_config(CONFIG), Rect(0, 0, 1366, 768))
     placed = []

@@ -1,12 +1,14 @@
+import struct
 import sys
 from dataclasses import replace
 
+from alive.application.audio import VoiceService
 from alive.application.commands import ShellCommandExecutor
 from alive.infrastructure.providers.cli import CliProvider, SubprocessRunner
-from alive.domain.config import ProviderConfig
+from alive.domain.config import ProviderConfig, VoiceConfig
 from support import (
-    FakeApprover, FakeLauncher, FakeView, FakeVoice, InlineBackground, make_config,
-    make_mediator,
+    FakeAi, FakeApprover, FakeBackground, FakeLauncher, FakeTimer, FakeView,
+    FakeVoice, InlineBackground, make_config, make_mediator,
 )
 
 
@@ -51,3 +53,57 @@ print(json.dumps({{"type": "text", "sessionID": "ses_x",
     assert tool_msg.text == "Resultado del comando `printf hola` (código 0):\nhola"
     assert view.bubbles[-1] == "Listo: hola"
     assert mediator.busy is False
+
+
+def test_real_voice_chain_fake_cli_end_to_end():
+    pcm = struct.pack("<h", 16000) * 1024
+    played = []
+
+    def runner(argv, stdin, timeout_s):
+        if argv[0] == "rec":
+            return b"audio capturado"
+        if argv[0] == "stt":
+            return b"hola"
+        if argv[0] == "tts":
+            assert stdin == "Hola".encode("utf-8")
+            return pcm
+        played.append(stdin)
+        return b""
+
+    voice_cfg = VoiceConfig(
+        enabled=True,
+        capture_command=["rec"],
+        stt_command=["stt"],
+        tts_command=["tts"],
+        play_command=["play"],
+        sample_rate=16000,
+        frame_samples=1024,
+        timeout_s=5.0,
+    )
+    config = replace(make_config(), voice=voice_cfg)
+    background, timer, view = FakeBackground(), FakeTimer(), FakeView()
+    voice = VoiceService(voice_cfg, runner, clock=lambda: 1.0)
+    mediator = make_mediator(
+        ai=FakeAi(["Hola"]), voice=voice, view=view, config=config,
+        background=background, timer=timer,
+    )
+
+    mediator.ptt_start()
+    mediator.ptt_end()
+    background.flush()  # captura + STT → texto
+    background.flush()  # modelo → respuesta
+    assert view.bubbles[-1] == "Hola"
+    assert mediator.busy is True and mediator.engine.state == "hablando"
+
+    background.flush()  # TTS → PCM y duración real
+    assert len(timer.pending) == 1
+    timer.fire()  # nivel de la boca en el hilo GTK
+    assert mediator.engine.tick(1.0).mouth > 0.0
+    assert played == [] and mediator.busy is True
+
+    background.flush()  # reproducción → fin del turno
+    assert played == [pcm]
+    assert timer.pending == []
+    assert mediator.busy is False
+    frame = mediator.engine.tick(1.0)
+    assert frame.state in ("sentado", "parado") and frame.mouth == 0.0

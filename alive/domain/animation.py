@@ -54,7 +54,6 @@ class AnimationEngine:
         self._dragging = False
         self._snap_start: float | None = None
         self._return_at: float | None = None
-        self._snap_return_state: str | None = None
         self._quiet = False
         self._quiet_state: str | None = None
         self._quiet_speaking_until = 0.0
@@ -66,6 +65,11 @@ class AnimationEngine:
     @property
     def idle_state(self) -> str:
         return self.idle_states[self._idle_index]
+
+    @property
+    def _hidden_states(self) -> tuple[str, ...]:
+        """Estados que quiet sustituye o que no son un turno en curso."""
+        return self.idle_states + ("musica", "arrastrado", "no_molestar")
 
     def idle(self, now: float) -> None:
         if self._quiet:
@@ -123,7 +127,6 @@ class AnimationEngine:
 
     def begin_snap(self, now: float) -> None:
         self._dragging = False
-        self._snap_return_state = self._state
         self._snap_start = now
         self._return_at = now + self.snap_ms / 1000
 
@@ -133,11 +136,17 @@ class AnimationEngine:
     def set_quiet(self, active: bool, now: float) -> None:
         if active == self._quiet:
             return
+        # Quiet solo oculta idle y música; los turnos siguen visibles por sí solos.
+        hidden = self._hidden_states
         if active:
-            self._quiet_state = self._state
-            self._quiet_speaking_until = self.speaking_until
             self._quiet = True
-            self.transition_to("no_molestar", now)
+            if self._state in hidden:
+                self._quiet_state = self._state
+                self._quiet_speaking_until = self.speaking_until
+                self.transition_to("no_molestar", now)
+            else:
+                self._quiet_state = None
+                self._quiet_speaking_until = 0.0
             return
 
         self._quiet = False
@@ -145,13 +154,11 @@ class AnimationEngine:
         saved_until = self._quiet_speaking_until
         self._quiet_state = None
         self._quiet_speaking_until = 0.0
-        in_turn = previous not in (
-            None,
-            "no_molestar",
-            "arrastrado",
-            "musica",
-        ) and previous not in self.idle_states
+        in_turn = self._state not in hidden
         if in_turn:
+            # El turno en curso ya es visible; no lo sustituimos por un idle viejo.
+            self._idle_since = now
+        elif previous in self.idle_states or previous == "musica":
             self._state = previous
             self.speaking_until = saved_until
             self._idle_since = now
@@ -171,20 +178,11 @@ class AnimationEngine:
 
         if self._return_at is not None:
             if now >= self._return_at:
-                previous = self._snap_return_state
                 self._snap_start = None
                 self._return_at = None
-                self._snap_return_state = None
-                in_turn = (
-                    previous is not None
-                    and previous != "arrastrado"
-                    and previous not in self.idle_states
-                    and previous not in ("musica", "no_molestar")
-                )
-                if in_turn:
-                    self._state = previous
-                    self._idle_since = now
-                else:
+                # Solo conservamos un turno que siga vivo ahora; uno que terminó
+                # durante el snap no debe reaparecer al terminar la animación.
+                if self._state in self._hidden_states:
                     self.idle(now)
             else:
                 assert self._snap_start is not None

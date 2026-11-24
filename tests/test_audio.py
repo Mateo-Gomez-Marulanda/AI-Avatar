@@ -129,6 +129,31 @@ def test_speak_async_delivers_levels_and_finishes_after_playback():
     assert levels[-1][0] == 0.0
 
 
+def test_stale_synthesis_callback_is_discarded():
+    pcm = struct.pack("<h", 16000) * 1024
+    cfg = type("C", (), {"enabled": True, "tts_command": ["tts"],
+                         "play_command": ["paplay"], "sample_rate": 16000,
+                         "frame_samples": 1024, "timeout_s": 5.0})()
+    bg, timer = FakeBackground(), FakeTimer()
+    old = {"ready": [], "levels": [], "done": []}
+    new = {"ready": [], "levels": [], "done": []}
+    v = VoiceService(cfg, lambda argv, stdin, t: pcm, clock=lambda: 1.0)
+    for text, sink in (("uno", old), ("dos", new)):
+        v.speak_async(
+            text,
+            on_level=lambda level, now, sink=sink: sink["levels"].append(level),
+            on_ready=lambda duration, sink=sink: sink["ready"].append(duration),
+            on_done=lambda error, sink=sink: sink["done"].append(error),
+            background=bg, timer=timer,
+        )
+    bg.flush()  # sintetiza "dos"
+    timer.fire_all()
+    bg.flush()  # llega tarde la síntesis de "uno"
+    assert old == {"ready": [], "levels": [], "done": []}
+    bg.flush()  # reproducir "dos"
+    assert new["done"] == [None] and new["ready"] == [0.064] and new["levels"]
+
+
 def test_speak_async_reports_synthesis_error_once():
     cfg = type("C", (), {"enabled": True, "tts_command": ["tts"],
                          "play_command": ["paplay"], "sample_rate": 16000,
