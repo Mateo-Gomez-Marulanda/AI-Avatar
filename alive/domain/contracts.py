@@ -14,6 +14,7 @@ T = TypeVar("T")
 @dataclass(frozen=True)
 class AiReply:
     text: str
+    session_id: str | None = None
 
 
 class ProviderError(RuntimeError):
