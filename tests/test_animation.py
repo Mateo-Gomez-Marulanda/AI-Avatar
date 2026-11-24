@@ -61,3 +61,41 @@ def test_music_stops_when_no_other_state_intervenes():
     assert e.tick(0.0).state == "musica"
     e.set_music(False, 1.0)
     assert e.tick(1.0).state in ("sentado", "parado")
+
+
+def test_speech_duration_override_ends_hablando_early():
+    e = AnimationEngine()
+    e.speak("hola que tal", 0.0)
+    e.set_speech_duration(0.05, 0.0)
+    assert e.tick(0.06).state == "sentado"
+
+
+def test_end_speech_stops_hablando_before_text_estimate():
+    e = AnimationEngine()
+    e.speak("texto muy largo", 0.0)
+    e.end_speech(1.0)
+    frame = e.tick(1.0)
+    assert frame.state == "sentado" and frame.mouth == 0.0
+
+
+def test_quiet_holds_idle_and_music_and_restores_previous_state():
+    e = AnimationEngine()
+    e.transition_to("pensando", 0.0)
+    e.set_quiet(True, 1.0)
+    assert e.tick(2.0).state == "no_molestar"
+    e.set_music(True, 3.0)
+    assert e.tick(3.0).state == "no_molestar"
+    e.set_quiet(False, 4.0)
+    assert e.state == "pensando"
+    e.idle(5.0)
+    e.set_quiet(True, 6.0)
+    assert e.tick(30.0).state == "no_molestar"
+
+
+def test_begin_snap_exposes_progress_and_returns_to_idle():
+    e = AnimationEngine(snap_ms=200)
+    e.begin_snap(0.0)
+    mid = e.tick(0.1)
+    assert mid.state == "arrastrado" and mid.snap_progress == 0.5
+    end = e.tick(0.2)
+    assert end.state == "sentado" and end.snap_progress == 1.0

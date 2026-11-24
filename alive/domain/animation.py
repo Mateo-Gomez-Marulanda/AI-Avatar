@@ -54,6 +54,9 @@ class AnimationEngine:
         self._dragging = False
         self._snap_start: float | None = None
         self._return_at: float | None = None
+        self._quiet = False
+        self._quiet_state: str | None = None
+        self._quiet_speaking_until = 0.0
 
     @property
     def state(self) -> str:
@@ -64,7 +67,10 @@ class AnimationEngine:
         return self.idle_states[self._idle_index]
 
     def idle(self, now: float) -> None:
-        self._state = "musica" if self._music_active else self.idle_state
+        if self._quiet:
+            self._state = "no_molestar"
+        else:
+            self._state = "musica" if self._music_active else self.idle_state
         self.speaking_until = 0.0
         self._idle_since = now
 
@@ -86,9 +92,22 @@ class AnimationEngine:
         if state != "hablando":
             self.speaking_until = 0.0
 
-    def speak(self, text: str, now: float) -> None:
+    def speak(self, text: str, now: float, duration_s: float | None = None) -> None:
         self._state = "hablando"
-        self.speaking_until = now + len(text) * self.ms_per_char / 1000
+        seconds = (
+            len(text) * self.ms_per_char / 1000
+            if duration_s is None
+            else duration_s
+        )
+        self.speaking_until = now + seconds
+
+    def set_speech_duration(self, duration_s: float, now: float) -> None:
+        self.speaking_until = now + duration_s
+
+    def end_speech(self, now: float) -> None:
+        self._audio_level = 0.0
+        self._audio_at = float("-inf")
+        self.idle(now)
 
     def set_audio_level(self, level: float, now: float) -> None:
         self._audio_level = min(1.0, max(0.0, level))
@@ -101,10 +120,41 @@ class AnimationEngine:
         self._return_at = None
         self.speaking_until = 0.0
 
-    def end_drag(self, now: float) -> None:
+    def begin_snap(self, now: float) -> None:
         self._dragging = False
         self._snap_start = now
         self._return_at = now + self.snap_ms / 1000
+
+    def end_drag(self, now: float) -> None:
+        self.begin_snap(now)
+
+    def set_quiet(self, active: bool, now: float) -> None:
+        if active == self._quiet:
+            return
+        if active:
+            self._quiet_state = self._state
+            self._quiet_speaking_until = self.speaking_until
+            self._quiet = True
+            self.transition_to("no_molestar", now)
+            return
+
+        self._quiet = False
+        previous = self._quiet_state
+        saved_until = self._quiet_speaking_until
+        self._quiet_state = None
+        self._quiet_speaking_until = 0.0
+        in_turn = previous not in (
+            None,
+            "no_molestar",
+            "arrastrado",
+            "musica",
+        ) and previous not in self.idle_states
+        if in_turn:
+            self._state = previous
+            self.speaking_until = saved_until
+            self._idle_since = now
+        else:
+            self.idle(now)
 
     def _mouth(self, now: float) -> float:
         if now - self._audio_at <= _AUDIO_TTL_S:
@@ -131,7 +181,7 @@ class AnimationEngine:
         if self._state == "hablando" and now >= self.speaking_until:
             self.idle(now)
 
-        if self._state in self.idle_states and not self._music_active:
+        if self._state in self.idle_states and not self._music_active and not self._quiet:
             if self._idle_since is None:
                 self._idle_since = now
             elif now - self._idle_since >= self.idle_switch_s:
