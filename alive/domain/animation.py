@@ -9,6 +9,8 @@ STATES = (
     "parado",
     "escuchando",
     "pensando",
+    "esperando",
+    "ejecutando",
     "hablando",
     "musica",
     "arrastrado",
@@ -28,14 +30,24 @@ class Frame:
 class AnimationEngine:
     def __init__(
         self,
-        idle_state: str = "sentado",
+        idle_states: tuple[str, ...] = ("sentado", "parado"),
         snap_ms: int = 250,
         ms_per_char: int = 45,
+        idle_switch_s: float = 20.0,
     ) -> None:
-        self.idle_state = idle_state
+        if not idle_states:
+            raise ValueError("idle_states no puede estar vacío")
+        unknown = [state for state in idle_states if state not in STATES]
+        if unknown:
+            raise ValueError(f"estados idle desconocidos: {unknown!r}")
+        self.idle_states = tuple(idle_states)
         self.snap_ms = snap_ms
         self.ms_per_char = ms_per_char
-        self._state = idle_state
+        self.idle_switch_s = idle_switch_s
+        self._idle_index = 0
+        self._idle_since: float | None = None
+        self._music_active = False
+        self._state = self.idle_state
         self.speaking_until = 0.0
         self._audio_level = 0.0
         self._audio_at = float("-inf")
@@ -47,10 +59,30 @@ class AnimationEngine:
     def state(self) -> str:
         return self._state
 
+    @property
+    def idle_state(self) -> str:
+        return self.idle_states[self._idle_index]
+
+    def idle(self, now: float) -> None:
+        self._state = "musica" if self._music_active else self.idle_state
+        self.speaking_until = 0.0
+        self._idle_since = now
+
+    def set_music(self, active: bool, now: float) -> None:
+        self._music_active = active
+        if self._state == "musica" and not active:
+            self._state = self.idle_state
+        elif self._state in self.idle_states and active:
+            self._state = "musica"
+        self._idle_since = now
+
     def transition_to(self, state: str, now: float) -> None:
         if state not in STATES:
             raise ValueError(f"estado desconocido: {state!r}")
         self._state = state
+        if state in self.idle_states:
+            self._idle_index = self.idle_states.index(state)
+            self._idle_since = now
         if state != "hablando":
             self.speaking_until = 0.0
 
@@ -87,7 +119,7 @@ class AnimationEngine:
 
         if self._return_at is not None:
             if now >= self._return_at:
-                self._state = self.idle_state
+                self.idle(now)
                 self._snap_start = None
                 self._return_at = None
             else:
@@ -97,6 +129,14 @@ class AnimationEngine:
                 return Frame("arrastrado", self._mouth(now), min(1.0, max(0.0, progress)))
 
         if self._state == "hablando" and now >= self.speaking_until:
-            self._state = self.idle_state
+            self.idle(now)
+
+        if self._state in self.idle_states and not self._music_active:
+            if self._idle_since is None:
+                self._idle_since = now
+            elif now - self._idle_since >= self.idle_switch_s:
+                self._idle_index = (self._idle_index + 1) % len(self.idle_states)
+                self._idle_since = now
+                self._state = self.idle_state
 
         return Frame(self._state, self._mouth(now), 1.0)

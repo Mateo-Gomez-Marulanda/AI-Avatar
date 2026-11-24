@@ -118,3 +118,7 @@ def test_click_during_snap_keeps_the_animation(monkeypatch):
     assert view._snap_to is not None
     view.render(SimpleNamespace(mouth=0.0, snap_progress=1.0))
     assert view._snap_to is None
+
+
+def test_avatar_has_colors_for_action_states():
+    assert {"pensando", "esperando", "ejecutando"} <= set(av._STATE_COLORS)

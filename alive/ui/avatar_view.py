@@ -29,6 +29,8 @@ _STATE_COLORS = {
     "parado": (0.30, 0.70, 0.55),
     "escuchando": (0.95, 0.72, 0.25),
     "pensando": (0.70, 0.55, 0.90),
+    "esperando": (0.95, 0.55, 0.15),
+    "ejecutando": (0.25, 0.75, 0.85),
     "hablando": (0.95, 0.45, 0.45),
     "musica": (0.40, 0.55, 0.95),
     "arrastrado": (0.60, 0.60, 0.65),
