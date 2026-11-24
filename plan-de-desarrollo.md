@@ -1,6 +1,6 @@
 # Plan de desarrollo — Avatar de escritorio «Alive»
 
-Estado: **borrador, pendiente de aprobación**.
+Estado: **aprobado; F0–F4 implementados y F5 cerrada** (ver `docs/f5-cierre.md`).
 Fecha: 2026-11-23.
 
 ## 1. Intención y por qué

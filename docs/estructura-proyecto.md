@@ -1,5 +1,7 @@
 # Diseño: restructura del proyecto por capas
 
+> Nota histórica: la tabla de archivos refleja el estado de entonces. Hoy `orders.py` es `actions.py`, y el contrato `ESTADO`/`ABRIR` fue sustituido por el bloque `alive-accion`; la estructura actual está en `README.md`.
+
 ## Intención
 
 El paquete `alive/` quedó plano después de la primera implementación. Queremos que

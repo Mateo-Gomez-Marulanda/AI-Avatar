@@ -1,5 +1,7 @@
 # Diseño corto: interacción, salida y voz disponible
 
+> Nota histórica: el contrato `ESTADO`/`ABRIR` mencionado aquí ya no existe; hoy se usa `alive-accion` y la voz es asíncrona. Ver `README.md` y `docs/f4-voz-y-no-molestar-design.md`.
+
 ## Intención
 
 Arreglar tres síntomas reportados por el usuario sobre el avatar en KDE/Wayland:

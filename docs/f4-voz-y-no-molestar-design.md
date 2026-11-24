@@ -1,6 +1,6 @@
 # Diseño F4: voz no bloqueante y zona «no molestar»
 
-Estado: **pendiente de aprobación**.
+Estado: **aprobado, implementado e integrado en `main` (F4 cerrado)**.
 Fecha: 2026-11-24.
 
 ## 1. Intención y por qué

@@ -1,5 +1,7 @@
 # Diseño corto: movimiento del avatar y proveedor OpenCode
 
+> Nota histórica: describe la decisión original. El contrato y la configuración vigentes son `actions.py`, el historial explícito y `README.md`; ya no existen `session_mode`, `session_flag`, `session_id_regex` ni `prompt_template`.
+
 ## Intención
 
 Corregir que el avatar parpadee y no cambie de posición correctamente al

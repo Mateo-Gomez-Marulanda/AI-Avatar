@@ -1,6 +1,6 @@
 # Diseño: P0 — asistente conversacional con acciones autorizadas
 
-Estado: **propuesto, pendiente de aprobación**.
+Estado: **aprobado, implementado e integrado en `main` (P0 cerrado)**.
 Fecha: 2026-11-23.
 
 ## 1. Intención y por qué

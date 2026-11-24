@@ -167,8 +167,8 @@ pasa por `BinarySubprocessRunner`, sin decodificarlo a texto.
 | `alive/ui/` | Todo lo visible: `avatar_view.py` (avatar, eventos, globo y snap), `input_panel.py` (texto, PTT y estado ocupado), `approval_dialog.py` (comando exacto y decisión). |
 | `alive/main.py` | Raíz de composición: carga la configuración, construye e inyecta dependencias, cablea callbacks y estado, registra el tick y arranca `Gtk.main()`. Es el único lugar que importa todas las capas y GTK. |
 | `tests/` | Suite plana de pytest: un archivo por módulo, `support.py` (fakes), `test_structure.py` (imports por capa), `test_smoke_flow.py` (smoke determinista con CLI falso real) y `fixtures/fake_config.toml`. |
-| `docs/` | `estructura-proyecto.md` (diseño por capas), `interaccion-y-salida.md` (clic, salida y voz), `movimiento-y-proveedor.md` (anclajes y OpenCode) y `superpowers/plans/` (planes de ejecución: los archivos nuevos se ignoran, aunque algunos planes antiguos siguen versionados). |
-| Raíz del repo | `config.toml.example` (plantilla comentada), `.opencode/agents/alive.md` (agente sin herramientas), `plan-de-desarrollo.md` (diseño original) y este README. |
+| `docs/` | `estructura-proyecto.md` (diseño por capas), `interaccion-y-salida.md` (clic, salida y voz), `movimiento-y-proveedor.md` (anclajes y OpenCode), `f4-voz-y-no-molestar-design.md` y `f5-cierre.md` (estado de las fases); los tres primeros son registros históricos con nota de vigencia. `superpowers/plans/` contiene planes de ejecución (los nuevos se ignoran). |
+| Raíz del repo | `config.toml.example` (plantilla comentada), `.opencode/agents/alive.md` (agente sin herramientas), `plan-de-desarrollo.md` (diseño original, con estado actualizado) y este README. |
 | Ignorados | `.venv/`, `__pycache__/`, `.pytest_cache/`, `.superpowers/`, `superpowers/`, los planes nuevos de `docs/superpowers/` y `config.toml` son entornos, cachés, scratch y configuración local; no forman parte del código. |
 
 Las dependencias apuntan en una sola dirección: `ui`, `application` e
