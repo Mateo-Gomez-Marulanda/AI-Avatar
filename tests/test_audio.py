@@ -18,7 +18,7 @@ def test_speak_feeds_levels_in_order():
     levels, sleeps = [], []
     cfg = type("C", (), {"tts_command": ["tts"], "play_command": ["paplay"],
                          "sample_rate": 16000, "frame_samples": 1024, "timeout_s": 5.0})()
-    runner = lambda argv, stdin, timeout_s: b"\x00" * 4096 if argv[0] == "tts" else ""
+    runner = lambda argv, stdin, timeout_s: b"\x00" * 4096 if argv[0] == "tts" else b""
     v = VoiceService(cfg, runner, lambda s: sleeps.append(s))
     v.speak("hola", lambda level, t: levels.append(level))
     assert levels == [0.0, 0.0]
@@ -66,3 +66,19 @@ def test_disabled_voice_has_no_missing_commands():
                          "stt_command": ["stt"], "tts_command": ["tts"],
                          "play_command": ["play"]})()
     assert audio.missing_voice_commands(cfg) == []
+
+
+def test_binary_runner_preserves_raw_pcm_bytes():
+    import sys
+    from alive.infrastructure.voice_runner import BinarySubprocessRunner
+    code = "import sys; sys.stdout.buffer.write(bytes([0, 255, 128, 10]))"
+    out = BinarySubprocessRunner().run([sys.executable, "-c", code], b"", 5.0)
+    assert out == bytes([0, 255, 128, 10])
+
+
+def test_synthesize_keeps_raw_pcm_from_runner():
+    pcm = bytes([0, 255, 128, 10])
+    cfg = type("C", (), {"enabled": True, "tts_command": ["tts"],
+                         "timeout_s": 5.0})()
+    v = VoiceService(cfg, lambda argv, stdin, t: pcm)
+    assert v.synthesize("hola") == pcm

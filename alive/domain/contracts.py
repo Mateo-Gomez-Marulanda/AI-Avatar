@@ -28,6 +28,11 @@ class CommandRunner(Protocol):
 
 
 @runtime_checkable
+class BinaryCommandRunner(Protocol):
+    def run(self, argv: list[str], stdin: bytes, timeout_s: float) -> bytes: ...
+
+
+@runtime_checkable
 class AiProvider(Protocol):
     def ask(self, prompt: str) -> AiReply: ...
 

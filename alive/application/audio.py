@@ -8,9 +8,9 @@ import struct
 import time
 from collections.abc import Callable
 
-from alive.domain.contracts import CommandRunner
+from alive.domain.contracts import BinaryCommandRunner
 
-Runner = CommandRunner | Callable[[list[str], bytes, float], str | bytes]
+Runner = BinaryCommandRunner | Callable[[list[str], bytes, float], bytes]
 
 
 def missing_voice_commands(config) -> list[str]:
@@ -30,18 +30,14 @@ def missing_voice_commands(config) -> list[str]:
     ]
 
 
-def _run(runner: Runner, argv: list[str], stdin: bytes, timeout_s: float) -> str | bytes:
+def _run(runner: Runner, argv: list[str], stdin: bytes, timeout_s: float) -> bytes:
     if callable(runner):
         return runner(argv, stdin, timeout_s)
     return runner.run(argv, stdin, timeout_s)
 
 
-def _as_bytes(value: str | bytes) -> bytes:
-    return value if isinstance(value, bytes) else value.encode("utf-8", errors="replace")
-
-
-def _as_text(value: str | bytes) -> str:
-    return value if isinstance(value, str) else value.decode("utf-8", errors="replace")
+def _as_text(value: bytes) -> str:
+    return value.decode("utf-8", errors="replace")
 
 
 def rms_envelope(
@@ -81,16 +77,24 @@ class VoiceService:
             arg.replace("{duration}", str(seconds))
             for arg in self.config.capture_command
         ]
-        result = _run(self.runner, argv, b"", seconds + 2)
-        return _as_bytes(result)
+        return _run(self.runner, argv, b"", seconds + 2)
 
     def transcribe(self, audio: bytes) -> str:
         if not self._enabled(self.config.stt_command):
             return ""
-        result = _run(
-            self.runner, self.config.stt_command, audio, self.config.timeout_s
+        return _as_text(
+            _run(self.runner, self.config.stt_command, audio, self.config.timeout_s)
+        ).strip()
+
+    def synthesize(self, text: str) -> bytes:
+        if not self._enabled(self.config.tts_command):
+            return b""
+        return _run(
+            self.runner,
+            self.config.tts_command,
+            text.encode("utf-8"),
+            self.config.timeout_s,
         )
-        return _as_text(result).strip()
 
     def speak(
         self,
@@ -99,14 +103,7 @@ class VoiceService:
     ) -> None:
         if not self._enabled(self.config.tts_command) or not self.config.play_command:
             return
-        pcm = _as_bytes(
-            _run(
-                self.runner,
-                self.config.tts_command,
-                text.encode("utf-8"),
-                self.config.timeout_s,
-            )
-        )
+        pcm = self.synthesize(text)
         _run(self.runner, self.config.play_command, pcm, self.config.timeout_s)
         step = self.config.frame_samples / self.config.sample_rate
         for level in rms_envelope(pcm, frame_samples=self.config.frame_samples):
