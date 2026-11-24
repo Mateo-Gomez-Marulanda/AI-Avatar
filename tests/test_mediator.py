@@ -23,7 +23,7 @@ def test_answer_shows_bubble_and_speaks():
         def set_click_through(self, e): pass
         def snap_to(self, z): pass
     class A:
-        def ask(self, prompt, history): from alive.domain.contracts import AiReply; return AiReply("Hola\nABRIR=firefox")
+        def ask(self, prompt): from alive.domain.contracts import AiReply; return AiReply("Hola\nABRIR=firefox")
     class Voice:
         def record(self, s): return b""
         def transcribe(self, a): return ""
@@ -44,7 +44,7 @@ def test_empty_ptt_does_not_call_ai():
         def transcribe(self, a): return "   "
         def speak(self, text, on_level): raise AssertionError("no debe hablar")
     class AI:
-        def ask(self, p, h): raise AssertionError("no debe llamar al modelo")
+        def ask(self, p): raise AssertionError("no debe llamar al modelo")
     class V:
         def show_bubble(self, text, ms): self.bubble = text
     e = AnimationEngine()
@@ -62,7 +62,7 @@ def test_provider_error_returns_to_idle_with_message():
         def set_click_through(self, e): pass
         def snap_to(self, z): pass
     class AI:
-        def ask(self, p, h): raise ProviderError("timeout")
+        def ask(self, p): raise ProviderError("timeout")
     class Voice:
         def record(self,s): return b""
         def transcribe(self,a): return ""
@@ -118,7 +118,7 @@ def test_missing_tts_does_not_break_text_reply():
         def set_click_through(self, e): pass
         def snap_to(self, z): pass
     class A:
-        def ask(self, prompt, history): return AiReply("Hola sin voz")
+        def ask(self, prompt): return AiReply("Hola sin voz")
     class Voice:
         def record(self, s): return b""
         def transcribe(self, a): return ""

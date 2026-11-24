@@ -46,7 +46,7 @@ class Mediator:
 
     def _ask(self, text: str) -> AiReply | None:
         try:
-            return self.ai.ask(text, self.history)
+            return self.ai.ask("\n".join((*self.history, text)))
         except ProviderError:
             return None
 

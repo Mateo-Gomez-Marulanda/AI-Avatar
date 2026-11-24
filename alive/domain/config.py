@@ -27,11 +27,13 @@ class Zone:
 @dataclass(frozen=True)
 class ProviderConfig:
     command: list[str]
-    session_mode: str
+    session_mode: str = "oneshot"
     session_flag: str = ""
     session_id_regex: str = ""
     timeout_s: float = 60.0
     prompt_template: str = ""
+    output_format: str = "text"
+    workdir: str = ""
 
 
 @dataclass(frozen=True)

@@ -28,7 +28,7 @@ class CommandRunner(Protocol):
 
 @runtime_checkable
 class AiProvider(Protocol):
-    def ask(self, prompt: str, history: tuple[str, ...]) -> AiReply: ...
+    def ask(self, prompt: str) -> AiReply: ...
 
 
 @runtime_checkable

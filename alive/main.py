@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import subprocess
 import time
 from pathlib import Path
@@ -33,7 +34,8 @@ def build(config_path: str | Path) -> tuple[Mediator, AvatarView, InputPanel, An
 
     missing_voice = missing_voice_commands(config.voice)
     runner = SubprocessRunner()
-    ai = CliProvider(config.provider, runner)
+    ai_runner = SubprocessRunner(os.path.expanduser(config.provider.workdir) or None)
+    ai = CliProvider(config.provider, ai_runner)
     voice = VoiceService(config.voice, runner)
     launcher = AppLauncher(config.apps, lambda argv: subprocess.Popen(argv))
     engine = AnimationEngine(
