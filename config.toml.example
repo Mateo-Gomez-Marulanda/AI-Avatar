@@ -25,6 +25,7 @@ max_per_turn = 3
 approval_timeout_s = 120.0
 working_dir = "~"
 share_output_with_model = false
+# La salida no viaja al proveedor y el turno termina sin segunda llamada al modelo
 
 [conversation]
 max_chars = 6000
