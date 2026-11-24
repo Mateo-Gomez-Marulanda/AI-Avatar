@@ -155,13 +155,15 @@ class AvatarView:
             GtkLayerShell.set_margin(self.window, GtkLayerShell.Edge.TOP, rect.y)
 
     def _place_free(self, x: int, y: int) -> None:
-        """Coloca la ventana por márgenes; nunca usa window.move() en Wayland."""
-        for edge in (
-            GtkLayerShell.Edge.TOP,
-            GtkLayerShell.Edge.BOTTOM,
-            GtkLayerShell.Edge.RIGHT,
-        ):
-            GtkLayerShell.set_anchor(self.window, edge, False)
+        """Coloca la ventana por márgenes; nunca usa window.move() en Wayland.
+
+        En Wayland un margen solo se aplica al borde anclado: TOP y LEFT deben
+        estar anclados para que las coordenadas del arrastre y del snap surtan
+        efecto. BOTTOM y RIGHT se desanclan para no competir con ellos.
+        """
+        GtkLayerShell.set_anchor(self.window, GtkLayerShell.Edge.BOTTOM, False)
+        GtkLayerShell.set_anchor(self.window, GtkLayerShell.Edge.RIGHT, False)
+        GtkLayerShell.set_anchor(self.window, GtkLayerShell.Edge.TOP, True)
         GtkLayerShell.set_anchor(self.window, GtkLayerShell.Edge.LEFT, True)
         GtkLayerShell.set_margin(self.window, GtkLayerShell.Edge.LEFT, int(x))
         GtkLayerShell.set_margin(self.window, GtkLayerShell.Edge.TOP, int(y))

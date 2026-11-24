@@ -6,7 +6,7 @@ import gi
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 gi.require_version("GtkLayerShell", "0.1")
-from gi.repository import Gdk
+from gi.repository import Gdk, GtkLayerShell
 
 from alive.domain.config import load_config
 from alive.domain.geometry import Rect
@@ -69,6 +69,27 @@ def test_second_drag_during_snap_does_not_jump_back(monkeypatch):
     view.render(SimpleNamespace(mouth=0.0, snap_progress=0.0))
     assert view._snap_to is None
     assert placed[-1] == (703, 132)
+
+
+def test_drag_and_snap_use_anchored_margins(monkeypatch):
+    view, _ = make_view()
+    monkeypatch.setattr(av.Gtk.Widget, "grab_add", lambda w: None)
+    monkeypatch.setattr(av.Gtk.Widget, "grab_remove", lambda w: None)
+    E = GtkLayerShell.Edge
+
+    view._button_press(None, ev())
+    view._motion(None, ev(100, 200, Gdk.ModifierType.BUTTON1_MASK))
+    assert GtkLayerShell.get_anchor(view.window, E.TOP)
+    assert GtkLayerShell.get_anchor(view.window, E.LEFT)
+    assert GtkLayerShell.get_margin(view.window, E.TOP) == 232
+    assert GtkLayerShell.get_margin(view.window, E.LEFT) == 683
+
+    view._button_release(None, ev(100, 200))
+    view.render(SimpleNamespace(mouth=0.0, snap_progress=0.5))
+    assert GtkLayerShell.get_anchor(view.window, E.TOP)
+    assert GtkLayerShell.get_anchor(view.window, E.LEFT)
+    assert GtkLayerShell.get_margin(view.window, E.TOP) == 132
+    assert GtkLayerShell.get_margin(view.window, E.LEFT) == 633
 
 
 def test_click_during_snap_keeps_the_animation(monkeypatch):
